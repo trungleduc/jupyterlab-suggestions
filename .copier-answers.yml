@@ -1,0 +1,14 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.3.5
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: ''
+author_name: QuantStack
+has_binder: false
+has_settings: false
+kind: frontend
+labextension_name: jupyterlab-suggestions
+project_short_description: A JupyterLab extension for suggesting changes.
+python_name: jupyterlab_suggestions
+repository: https://github.com/QuantStack/jupyterlab-suggestions
+test: false
+
