@@ -6,7 +6,7 @@ A JupyterLab extension for suggesting changes.
 
 ## Status
 
-⚠️ Currently being prototyped ⚠️
+⚠️ WIP ⚠️
 
 ## Requirements
 
