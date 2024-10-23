@@ -4,25 +4,13 @@
 
 A JupyterLab extension for suggesting changes.
 
+## Status
+
+⚠️ Currently being prototyped ⚠️
+
 ## Requirements
 
 - JupyterLab >= 4.0.0
-
-## Install
-
-To install the extension, execute:
-
-```bash
-pip install jupyterlab_suggestions
-```
-
-## Uninstall
-
-To remove the extension, execute:
-
-```bash
-pip uninstall jupyterlab_suggestions
-```
 
 ## Contributing
 
