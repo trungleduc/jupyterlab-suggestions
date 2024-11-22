@@ -3,7 +3,10 @@ import {
   ISuggestionsModel,
   ISuggestionsModelToken,
   SuggestionsModel,
-  SuggestionsPanelWidget
+  SuggestionsPanelWidget,
+  LocalSuggestionsManager,
+  ISuggestionsManager,
+  ISuggestionsManagerToken
 } from '@jupyter/jupyter-suggestions-base';
 import {
   ILayoutRestorer,
@@ -20,14 +23,18 @@ export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
     id: `${NAME_SPACE}:model`,
     description: 'The model of the suggestions panel',
     autoStart: true,
-    requires: [INotebookTracker],
+    requires: [INotebookTracker, ISuggestionsManagerToken],
     provides: ISuggestionsModelToken,
     activate: (
       app: JupyterFrontEnd,
-      tracker: INotebookTracker
+      tracker: INotebookTracker,
+      suggestionsManager: ISuggestionsManager
     ): ISuggestionsModel => {
       console.log(`${NAME_SPACE}:model is activated`);
-      const model = new SuggestionsModel({ panel: tracker.currentWidget });
+      const model = new SuggestionsModel({
+        panel: tracker.currentWidget,
+        suggestionsManager
+      });
       tracker.currentChanged.connect(async (_, changed) => {
         if (changed) {
           await changed.context.ready;
@@ -107,3 +114,16 @@ export const suggestionsPanelPlugin: JupyterFrontEndPlugin<void> = {
     app.shell.add(panel, 'right', { rank: 2000, activate: false });
   }
 };
+
+export const suggestionsManagerPlugin: JupyterFrontEndPlugin<ISuggestionsManager> =
+  {
+    id: `${NAME_SPACE}:manager`,
+    description: 'A JupyterLab extension for suggesting changes.',
+    autoStart: true,
+    requires: [INotebookTracker],
+    provides: ISuggestionsManagerToken,
+    activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
+      const manager = new LocalSuggestionsManager({ tracker });
+      return manager;
+    }
+  };

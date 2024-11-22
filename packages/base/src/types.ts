@@ -8,9 +8,12 @@ export interface IDict<T = any> {
 export interface ISuggestionsModel extends IDisposable {
   filePath: string;
   currentNotebookPanel: NotebookPanel | null;
+  allSuggestions: IDict | undefined;
+  notebookSwitched: ISignal<ISuggestionsModel, void>;
   switchNotebook(panel: NotebookPanel | null): Promise<void>;
   addSuggestion(): void;
-  notebookSwitched: ISignal<ISuggestionsModel, void>;
 }
 
-export interface ISuggestionsManager extends IDisposable {}
+export interface ISuggestionsManager extends IDisposable {
+  getAllSuggestions(notebook: NotebookPanel): IDict | undefined;
+}
