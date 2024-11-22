@@ -1,5 +1,3 @@
 import { style } from 'typestyle';
 
-export const mainPanelStyle = style({
-  minWidth: '500px!important'
-});
+export const mainPanelStyle = style({});

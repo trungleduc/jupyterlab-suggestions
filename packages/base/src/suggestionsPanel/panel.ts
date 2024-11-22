@@ -1,17 +1,16 @@
 import { SidePanel } from '@jupyterlab/ui-components';
+import { Signal } from '@lumino/signaling';
 
 import { ISuggestionsModel } from '../types';
 import { SuggestionsPanelHeader } from './header';
 import { mainPanelStyle } from './style';
-import { Signal } from '@lumino/signaling';
 
 export class SuggestionsPanelWidget extends SidePanel {
   constructor(options: SuggestionsPanelWidget.IOptions) {
-    super();
+    super(options);
     this.addClass(mainPanelStyle);
     this.node.tabIndex = 0;
     this._model = options.model;
-
     this.header.addWidget(this._headerWidget);
 
     this.connectSignal();
@@ -47,7 +46,7 @@ export class SuggestionsPanelWidget extends SidePanel {
 }
 
 export namespace SuggestionsPanelWidget {
-  export interface IOptions {
+  export interface IOptions extends SidePanel.IOptions {
     model: ISuggestionsModel;
   }
 }

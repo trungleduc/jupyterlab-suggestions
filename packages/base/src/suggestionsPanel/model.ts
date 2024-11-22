@@ -11,7 +11,9 @@ export class SuggestionsModel implements ISuggestionsModel {
   get notebookSwitched(): ISignal<ISuggestionsModel, void> {
     return this._notebookSwitched;
   }
-
+  get currentNotebookPanel(): NotebookPanel | null {
+    return this._notebookPanel;
+  }
   get isDisposed(): boolean {
     return this._isDisposed;
   }
@@ -24,6 +26,9 @@ export class SuggestionsModel implements ISuggestionsModel {
     Signal.clearData(this);
   }
 
+  addSuggestion(): void {
+    console.log('current', this._notebookPanel?.content.activeCell);
+  }
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
       await panel.context.ready;
