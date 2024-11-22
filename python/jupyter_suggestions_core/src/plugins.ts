@@ -28,8 +28,15 @@ export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
       tracker: INotebookTracker
     ): ISuggestionsModel => {
       console.log(`${NAME_SPACE}:suggestion-model is activated`);
-      const model = new SuggestionsModel();
-
+      const model = new SuggestionsModel({ panel: tracker.currentWidget });
+      tracker.currentChanged.connect(async (_, changed) => {
+        if (changed) {
+          await changed.context.ready;
+          model.switchNotebook(changed);
+        } else {
+          model.switchNotebook(null);
+        }
+      });
       return model;
     }
   };
@@ -72,8 +79,8 @@ export const suggestionsPanelPlugin: JupyterFrontEndPlugin<void> = {
     tracker: INotebookTracker
   ) => {
     console.log(`${NAME_SPACE}:suggestion-panel is activated`);
-    const panel = new SuggestionsPanelWidget({ model, tracker });
-    panel.id = 'jupyter-suggestions::main-panel';
+    const panel = new SuggestionsPanelWidget({ model });
+    panel.id = 'jupyter-suggestions:main-panel';
     panel.title.caption = 'Jupyter Suggestions';
     panel.title.icon = hintIcon;
     if (restorer) {
