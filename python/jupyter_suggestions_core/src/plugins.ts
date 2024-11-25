@@ -73,11 +73,12 @@ export const commandsPlugin: JupyterFrontEndPlugin<void> = {
     commands.addCommand(COMMAND_IDS.addCellSuggestion, {
       icon: hintIcon,
       caption: trans.__('Add suggestion'),
-      execute: () => {
+      execute: async () => {
         const current = tracker.currentWidget;
-        if (current === model.currentNotebookPanel) {
-          model.addSuggestion();
+        if (current !== model.currentNotebookPanel) {
+          await model.switchNotebook(current);
         }
+        await model.addSuggestion();
       },
       isVisible: () => true
     });

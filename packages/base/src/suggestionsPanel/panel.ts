@@ -4,6 +4,7 @@ import { Signal } from '@lumino/signaling';
 import { ISuggestionsModel } from '../types';
 import { SuggestionsPanelHeader } from './header';
 import { mainPanelStyle } from './style';
+import { SuggestionsWidget } from './widget';
 
 export class SuggestionsPanelWidget extends SidePanel {
   constructor(options: SuggestionsPanelWidget.IOptions) {
@@ -15,11 +16,10 @@ export class SuggestionsPanelWidget extends SidePanel {
 
     this.connectSignal();
     this._handleNotebookSwitched();
+    const widget = new SuggestionsWidget({ model: this._model });
+    this.addWidget(widget);
   }
 
-  get model(): ISuggestionsModel {
-    return this._model;
-  }
   connectSignal() {
     this._model.notebookSwitched.connect(this._handleNotebookSwitched, this);
   }
@@ -41,6 +41,7 @@ export class SuggestionsPanelWidget extends SidePanel {
     const filePath = this._model.filePath;
     this._headerWidget.title.label = filePath;
   }
+
   private _model: ISuggestionsModel;
   private _headerWidget = new SuggestionsPanelHeader();
 }

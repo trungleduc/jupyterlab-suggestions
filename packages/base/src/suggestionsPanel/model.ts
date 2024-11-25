@@ -1,10 +1,19 @@
 import { NotebookPanel } from '@jupyterlab/notebook';
-import { IDict, ISuggestionsManager, ISuggestionsModel } from '../types';
+import {
+  IAllSuggestions,
+  ISuggestionChange,
+  ISuggestionsManager,
+  ISuggestionsModel
+} from '../types';
 import { ISignal, Signal } from '@lumino/signaling';
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
     this.switchNotebook(options.panel);
     this._suggestionsManager = options.suggestionsManager;
+    this._suggestionsManager.suggestionChanged.connect(
+      this._handleSuggestionChanged,
+      this
+    );
   }
   get filePath(): string {
     return this._filePath ?? '-';
@@ -12,13 +21,19 @@ export class SuggestionsModel implements ISuggestionsModel {
   get notebookSwitched(): ISignal<ISuggestionsModel, void> {
     return this._notebookSwitched;
   }
+  get suggestionChanged(): ISignal<
+    ISuggestionsModel,
+    Omit<ISuggestionChange, 'notebookPath'>
+  > {
+    return this._suggestionChanged;
+  }
   get currentNotebookPanel(): NotebookPanel | null {
     return this._notebookPanel;
   }
   get isDisposed(): boolean {
     return this._isDisposed;
   }
-  get allSuggestions(): IDict | undefined {
+  get allSuggestions(): IAllSuggestions | undefined {
     return this._allSuggestions;
   }
   dispose(): void {
@@ -26,11 +41,29 @@ export class SuggestionsModel implements ISuggestionsModel {
       return;
     }
     this._isDisposed = true;
+    this._suggestionsManager.suggestionChanged.disconnect(
+      this._handleSuggestionChanged
+    );
     Signal.clearData(this);
   }
 
-  addSuggestion(): void {
-    console.log('current', this._notebookPanel?.content.activeCell);
+  async addSuggestion(): Promise<void> {
+    const activeCell = this._notebookPanel?.content.activeCell;
+    if (activeCell && this._notebookPanel) {
+      await this._suggestionsManager.addSuggestion({
+        notebook: this._notebookPanel,
+        cell: activeCell
+      });
+    }
+  }
+  getSuggestion(options: { cellId: string; suggestionId: string }) {
+    if (!this._filePath) {
+      return;
+    }
+    return this._suggestionsManager.getSuggestion({
+      notebookPath: this._filePath,
+      ...options
+    });
   }
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
@@ -42,12 +75,25 @@ export class SuggestionsModel implements ISuggestionsModel {
     this._notebookSwitched.emit();
   }
 
+  private _handleSuggestionChanged(
+    manager: ISuggestionsManager,
+    changed: ISuggestionChange
+  ) {
+    const { notebookPath, ...newChanged } = changed;
+    if (notebookPath === this._filePath) {
+      this._suggestionChanged.emit(newChanged);
+    }
+  }
   private _isDisposed = false;
   private _filePath?: string;
   private _notebookPanel: NotebookPanel | null = null;
   private _notebookSwitched: Signal<this, void> = new Signal(this);
-  private _allSuggestions?: IDict;
+  private _allSuggestions?: IAllSuggestions;
   private _suggestionsManager: ISuggestionsManager;
+  private _suggestionChanged = new Signal<
+    ISuggestionsModel,
+    Omit<ISuggestionChange, 'notebookPath'>
+  >(this);
 }
 
 export namespace SuggestionsModel {
