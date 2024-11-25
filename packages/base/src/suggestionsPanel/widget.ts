@@ -1,7 +1,9 @@
 import { PanelWithToolbar } from '@jupyterlab/ui-components';
+import { Panel } from '@lumino/widgets';
+
 import { ISuggestionChange, ISuggestionsModel } from '../types';
-import { Panel, Widget } from '@lumino/widgets';
-import { suggestionCellStyle, suggestionsWidgetAreaStyle } from './style';
+import { CellWidget } from './cellWidget';
+import { suggestionsWidgetAreaStyle } from './style';
 
 export class SuggestionsWidget extends PanelWithToolbar {
   constructor(options: SuggestionsWidget.IOptions) {
@@ -30,10 +32,9 @@ export class SuggestionsWidget extends PanelWithToolbar {
       case 'added': {
         const suggestion = this._model.getSuggestion({ cellId, suggestionId });
         if (suggestion) {
-          const w = new Widget();
-          w.addClass(suggestionCellStyle);
+          const w = new CellWidget({ cellModel: suggestion.content });
           w.id = suggestionId;
-          w.node.innerHTML = `<pre>${JSON.stringify(suggestion, null, 2)}</pre>`;
+          // w.node.innerHTML = `<pre>${JSON.stringify(suggestion, null, 2)}</pre>`;
           this._suggestionsArea.addWidget(w);
         }
         break;
@@ -56,10 +57,9 @@ export class SuggestionsWidget extends PanelWithToolbar {
     if (allSuggestions) {
       for (const [_, val] of allSuggestions.entries()) {
         Object.entries(val).forEach(([suggestionId, suggestionDef]) => {
-          const w = new Widget();
-          w.addClass(suggestionCellStyle);
+          const w = new CellWidget({ cellModel: suggestionDef.content });
           w.id = suggestionId;
-          w.node.innerHTML = `<pre>${JSON.stringify(suggestionDef, null, 2)}</pre>`;
+          // w.node.innerHTML = `<pre>${JSON.stringify(suggestionDef, null, 2)}</pre>`;
           this._suggestionsArea.addWidget(w);
         });
       }
