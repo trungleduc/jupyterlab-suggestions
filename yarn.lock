@@ -490,10 +490,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@jupyter/jupyter-suggestions-base@workspace:packages/base"
   dependencies:
+    "@jupyter/ydoc": ^3.0.0
     "@jupyterlab/apputils": ^4.0.0
+    "@jupyterlab/cells": ^4.0.0
+    "@jupyterlab/codemirror": ^4.0.0
     "@jupyterlab/docregistry": ^4.0.0
+    "@jupyterlab/nbformat": ^4.0.0
     "@jupyterlab/notebook": ^4.0.0
+    "@jupyterlab/rendermime": ^4.0.0
     "@jupyterlab/ui-components": ^4.0.0
+    "@lumino/coreutils": ^2.0.0
     "@lumino/disposable": ^2.0.0
     "@lumino/signaling": ^2.0.0
     "@lumino/widgets": ^2.0.0
@@ -695,7 +701,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/cells@npm:^4.3.1":
+"@jupyterlab/cells@npm:^4.0.0, @jupyterlab/cells@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/cells@npm:4.3.1"
   dependencies:
@@ -755,7 +761,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/codemirror@npm:^4.3.1":
+"@jupyterlab/codemirror@npm:^4.0.0, @jupyterlab/codemirror@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/codemirror@npm:4.3.1"
   dependencies:
@@ -932,7 +938,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0, @jupyterlab/nbformat@npm:^4.3.1":
+"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0, @jupyterlab/nbformat@npm:^4.0.0, @jupyterlab/nbformat@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/nbformat@npm:4.3.1"
   dependencies:
@@ -1024,7 +1030,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/rendermime@npm:^4.3.1":
+"@jupyterlab/rendermime@npm:^4.0.0, @jupyterlab/rendermime@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/rendermime@npm:4.3.1"
   dependencies:
@@ -1461,7 +1467,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/coreutils@npm:^1.11.0 || ^2.0.0, @lumino/coreutils@npm:^1.11.0 || ^2.2.0, @lumino/coreutils@npm:^2.2.0":
+"@lumino/coreutils@npm:^1.11.0 || ^2.0.0, @lumino/coreutils@npm:^1.11.0 || ^2.2.0, @lumino/coreutils@npm:^2.0.0, @lumino/coreutils@npm:^2.2.0":
   version: 2.2.0
   resolution: "@lumino/coreutils@npm:2.2.0"
   dependencies:

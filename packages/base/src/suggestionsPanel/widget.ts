@@ -34,7 +34,6 @@ export class SuggestionsWidget extends PanelWithToolbar {
         if (suggestion) {
           const w = new CellWidget({ cellModel: suggestion.content });
           w.id = suggestionId;
-          // w.node.innerHTML = `<pre>${JSON.stringify(suggestion, null, 2)}</pre>`;
           this._suggestionsArea.addWidget(w);
         }
         break;
@@ -55,11 +54,10 @@ export class SuggestionsWidget extends PanelWithToolbar {
       element.parent = null;
     }
     if (allSuggestions) {
-      for (const [_, val] of allSuggestions.entries()) {
+      for (const val of allSuggestions.values()) {
         Object.entries(val).forEach(([suggestionId, suggestionDef]) => {
           const w = new CellWidget({ cellModel: suggestionDef.content });
           w.id = suggestionId;
-          // w.node.innerHTML = `<pre>${JSON.stringify(suggestionDef, null, 2)}</pre>`;
           this._suggestionsArea.addWidget(w);
         });
       }
