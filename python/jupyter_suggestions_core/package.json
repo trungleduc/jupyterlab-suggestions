@@ -75,7 +75,12 @@
     },
     "extension": true,
     "outputDir": "jupyter_suggestions_core/labextension",
-    "sharedPackages": {},
+    "sharedPackages": {
+      "@jupyter/jupyter-suggestions-base": {
+        "singleton": true,
+        "bundled": true
+      }
+    },
     "schemaDir": "schema"
   }
 }

@@ -1,8 +1,12 @@
 import {
   hintIcon,
   ISuggestionsModel,
+  ISuggestionsModelToken,
   SuggestionsModel,
-  SuggestionsPanelWidget
+  SuggestionsPanelWidget,
+  LocalSuggestionsManager,
+  ISuggestionsManager,
+  ISuggestionsManagerToken
 } from '@jupyter/jupyter-suggestions-base';
 import {
   ILayoutRestorer,
@@ -10,26 +14,35 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import { INotebookTracker } from '@jupyterlab/notebook';
-
-import { ISuggestionsModelToken } from './tokens';
+import { ITranslator, nullTranslator } from '@jupyterlab/translation';
 
 const NAME_SPACE = '@jupyter/jupyter-suggestions-core';
 
 export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
   {
-    id: `${NAME_SPACE}:suggestion-model`,
+    id: `${NAME_SPACE}:model`,
     description: 'The model of the suggestions panel',
     autoStart: true,
-    requires: [ILayoutRestorer, INotebookTracker],
+    requires: [INotebookTracker, ISuggestionsManagerToken],
     provides: ISuggestionsModelToken,
     activate: (
       app: JupyterFrontEnd,
-      restorer: ILayoutRestorer,
-      tracker: INotebookTracker
+      tracker: INotebookTracker,
+      suggestionsManager: ISuggestionsManager
     ): ISuggestionsModel => {
-      console.log(`${NAME_SPACE}:suggestion-model is activated`);
-      const model = new SuggestionsModel();
-
+      console.log(`${NAME_SPACE}:model is activated`);
+      const model = new SuggestionsModel({
+        panel: tracker.currentWidget,
+        suggestionsManager
+      });
+      tracker.currentChanged.connect(async (_, changed) => {
+        if (changed) {
+          await changed.context.ready;
+          model.switchNotebook(changed);
+        } else {
+          model.switchNotebook(null);
+        }
+      });
       return model;
     }
   };
@@ -45,35 +58,55 @@ export const commandsPlugin: JupyterFrontEndPlugin<void> = {
   id: `${NAME_SPACE}:commands`,
   description: 'A JupyterLab extension for suggesting changes.',
   autoStart: true,
-  requires: [ISuggestionsModelToken],
-  activate: (app: JupyterFrontEnd, model: ISuggestionsModel) => {
-    console.log(`${NAME_SPACE}:suggestion-commands is activated`);
+  requires: [INotebookTracker, ISuggestionsModelToken],
+  optional: [ITranslator],
+  activate: (
+    app: JupyterFrontEnd,
+    tracker: INotebookTracker,
+    model: ISuggestionsModel,
+    translator_: ITranslator | null
+  ) => {
+    console.log(`${NAME_SPACE}:commands is activated`);
     const { commands } = app;
+    const translator = translator_ ?? nullTranslator;
+    const trans = translator.load('jupyterlab');
     commands.addCommand(COMMAND_IDS.addCellSuggestion, {
       icon: hintIcon,
-      caption: 'Add suggestion',
-      execute: () => {
-        //
+      caption: trans.__('Add suggestion'),
+      execute: async () => {
+        const current = tracker.currentWidget;
+        if (current !== model.currentNotebookPanel) {
+          await model.switchNotebook(current);
+        }
+        await model.addSuggestion();
       },
       isVisible: () => true
+    });
+    tracker.activeCellChanged.connect(() => {
+      commands.notifyCommandChanged(COMMAND_IDS.addCellSuggestion);
+    });
+    tracker.selectionChanged.connect(() => {
+      commands.notifyCommandChanged(COMMAND_IDS.addCellSuggestion);
     });
   }
 };
 
 export const suggestionsPanelPlugin: JupyterFrontEndPlugin<void> = {
-  id: `${NAME_SPACE}:suggestion-panel`,
+  id: `${NAME_SPACE}:panel`,
   description: 'A JupyterLab extension for suggesting changes.',
   autoStart: true,
-  requires: [ISuggestionsModelToken, ILayoutRestorer, INotebookTracker],
+  requires: [ISuggestionsModelToken, ILayoutRestorer],
+  optional: [ITranslator],
   activate: (
     app: JupyterFrontEnd,
     model: ISuggestionsModel,
     restorer: ILayoutRestorer,
-    tracker: INotebookTracker
+    translator_: ITranslator | null
   ) => {
-    console.log(`${NAME_SPACE}:suggestion-panel is activated`);
-    const panel = new SuggestionsPanelWidget({ model, tracker });
-    panel.id = 'jupyter-suggestions::main-panel';
+    console.log(`${NAME_SPACE}:panel is activated`);
+    const translator = translator_ ?? nullTranslator;
+    const panel = new SuggestionsPanelWidget({ model, translator });
+    panel.id = 'jupyter-suggestions:main-panel';
     panel.title.caption = 'Jupyter Suggestions';
     panel.title.icon = hintIcon;
     if (restorer) {
@@ -82,3 +115,16 @@ export const suggestionsPanelPlugin: JupyterFrontEndPlugin<void> = {
     app.shell.add(panel, 'right', { rank: 2000, activate: false });
   }
 };
+
+export const suggestionsManagerPlugin: JupyterFrontEndPlugin<ISuggestionsManager> =
+  {
+    id: `${NAME_SPACE}:manager`,
+    description: 'A JupyterLab extension for suggesting changes.',
+    autoStart: true,
+    requires: [INotebookTracker],
+    provides: ISuggestionsManagerToken,
+    activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
+      const manager = new LocalSuggestionsManager({ tracker });
+      return manager;
+    }
+  };

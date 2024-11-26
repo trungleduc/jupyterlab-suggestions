@@ -1,7 +1,13 @@
 import {
   suggestionsModelPlugin,
   suggestionsPanelPlugin,
-  commandsPlugin
+  commandsPlugin,
+  suggestionsManagerPlugin
 } from './plugins';
 
-export default [suggestionsModelPlugin, suggestionsPanelPlugin, commandsPlugin];
+export default [
+  suggestionsModelPlugin,
+  suggestionsPanelPlugin,
+  commandsPlugin,
+  suggestionsManagerPlugin
+];
