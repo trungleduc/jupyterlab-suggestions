@@ -14,6 +14,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
     this.title.label = 'All Suggestions';
     this._model = options.model;
     this._suggestionsArea.addClass(suggestionsWidgetAreaStyle);
+    this._suggestionsArea.addClass('jp-scrollbar-tiny');
     this.addWidget(this._suggestionsArea);
 
     this._renderSuggestions();
@@ -41,10 +42,22 @@ export class SuggestionsWidget extends PanelWithToolbar {
       case 'added': {
         const suggestion = this._model.getSuggestion({ cellId, suggestionId });
         if (suggestion) {
+          const cellIdx = this._model.getCellIndex(cellId);
+
+          if (cellIdx in this._indexCount) {
+            this._indexCount[cellIdx] += 1;
+          } else {
+            this._indexCount[cellIdx] = 1;
+          }
+          let suggestionPos = 0;
+          for (let key = 0; key <= cellIdx; key++) {
+            suggestionPos += this._indexCount[key];
+          }
+
           const w = new CellWidget({ cellModel: suggestion.content });
           w.id = suggestionId;
           w.addClass(suggestionCellSelectedStyle);
-          this._suggestionsArea.addWidget(w);
+          this._suggestionsArea.insertWidget(suggestionPos - 1, w);
         }
         break;
       }
@@ -87,6 +100,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
     }
   }
   private _suggestionsArea = new Panel();
+  private _indexCount: { [key: number]: number } = {};
   private _model: ISuggestionsModel;
 }
 

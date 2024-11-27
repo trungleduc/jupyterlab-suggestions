@@ -4,8 +4,9 @@ export const mainPanelStyle = style({});
 export const suggestionsWidgetAreaStyle = style({
   display: 'flex',
   flexDirection: 'column',
-  gap: '10px',
-  height: '100%'
+  gap: '5px',
+  height: '100%',
+  overflow: 'auto'
 });
 
 export const suggestionCellStyle = style({
