@@ -1,11 +1,5 @@
+import { IYText } from '@jupyter/ydoc';
 import { Cell, CodeCell, CodeCellModel } from '@jupyterlab/cells';
-import { ICell } from '@jupyterlab/nbformat';
-import {
-  RenderMimeRegistry,
-  standardRendererFactories as initialFactories
-} from '@jupyterlab/rendermime';
-import { Panel } from '@lumino/widgets';
-import { suggestionCellStyle } from './style';
 import {
   CodeMirrorEditorFactory,
   EditorExtensionRegistry,
@@ -13,9 +7,16 @@ import {
   EditorThemeRegistry,
   ybinding
 } from '@jupyterlab/codemirror';
-import { IYText } from '@jupyter/ydoc';
+import { ICell } from '@jupyterlab/nbformat';
+import {
+  RenderMimeRegistry,
+  standardRendererFactories as initialFactories
+} from '@jupyterlab/rendermime';
+import { Panel } from '@lumino/widgets';
 
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { highlightTextExtension } from './cmExtension';
+import { suggestionCellStyle } from './style';
+
 export class CellWidget extends Panel {
   constructor(options: CellWidget.IOptions) {
     super(options);
@@ -40,8 +41,7 @@ export class CellWidget extends Panel {
           const sharedModel = options.model.sharedModel as IYText;
           return EditorExtensionRegistry.createImmutableExtension(
             ybinding({
-              ytext: sharedModel.ysource,
-              undoManager: sharedModel.undoManager ?? undefined
+              ytext: sharedModel.ysource
             })
           );
         }
@@ -49,15 +49,9 @@ export class CellWidget extends Panel {
       registry.addExtension({
         name: 'suggestion-view',
         factory: options => {
-          const ext = ViewPlugin.fromClass(
-            class {
-              constructor(view: EditorView) {
-                console.log('3333333', options, view);
-              }
-            }
-          );
-
-          return EditorExtensionRegistry.createImmutableExtension([ext]);
+          return EditorExtensionRegistry.createImmutableExtension([
+            highlightTextExtension
+          ]);
         }
       });
       return registry;

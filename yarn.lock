@@ -503,6 +503,8 @@ __metadata:
     "@lumino/disposable": ^2.0.0
     "@lumino/signaling": ^2.0.0
     "@lumino/widgets": ^2.0.0
+    "@types/diff": ^6.0.0
+    diff: ^7.0.0
     rimraf: ^3.0.2
     typescript: ^5
     typestyle: ^2.4.0
@@ -2127,6 +2129,13 @@ __metadata:
     "@types/prop-types": "*"
     "@types/react": "*"
   checksum: a4237559499c77205c7e73269e53db6ada257e21a638f7222f20ffcd66d1a9c2ed1819ceca067a3edbdb47960d8a60ecd2c6de5a0cb9ed8e9de03e4ced144397
+  languageName: node
+  linkType: hard
+
+"@types/diff@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@types/diff@npm:6.0.0"
+  checksum: e29e3c3e36dc8de159794a4695be5a643257ed2ca209758b558ed3b11143c1857b8397ef507795c8067ac25429bc72033295b8ceac4d8fbff6b214fc9b74ae96
   languageName: node
   linkType: hard
 
@@ -3904,6 +3913,13 @@ __metadata:
   version: 29.6.3
   resolution: "diff-sequences@npm:29.6.3"
   checksum: f4914158e1f2276343d98ff5b31fc004e7304f5470bf0f1adb2ac6955d85a531a6458d33e87667f98f6ae52ebd3891bb47d420bb48a5bd8b7a27ee25b20e33aa
+  languageName: node
+  linkType: hard
+
+"diff@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "diff@npm:7.0.0"
+  checksum: 5db0d339476b18dfbc8a08a7504fbcc74789eec626c8d20cf2cdd1871f1448962888128f4447c8f50a1e41a80decfe5e8489c375843b8cf1d42b7c2b611da4e1
   languageName: node
   linkType: hard
 
