@@ -15,6 +15,7 @@ import {
 } from '@jupyterlab/codemirror';
 import { IYText } from '@jupyter/ydoc';
 
+import { EditorView, ViewPlugin } from '@codemirror/view';
 export class CellWidget extends Panel {
   constructor(options: CellWidget.IOptions) {
     super(options);
@@ -43,6 +44,20 @@ export class CellWidget extends Panel {
               undoManager: sharedModel.undoManager ?? undefined
             })
           );
+        }
+      });
+      registry.addExtension({
+        name: 'suggestion-view',
+        factory: options => {
+          const ext = ViewPlugin.fromClass(
+            class {
+              constructor(view: EditorView) {
+                console.log('3333333', options, view);
+              }
+            }
+          );
+
+          return EditorExtensionRegistry.createImmutableExtension([ext]);
         }
       });
       return registry;
