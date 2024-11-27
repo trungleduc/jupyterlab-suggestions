@@ -5,13 +5,13 @@
 */
 
 /* Added text: Highlighted with green */
-.cm-diff-added {
+.cm-cell-diff-added {
   background-color: rgb(0 255 0 / 30%); /* Light green */
   border-radius: 3px;
 }
 
 /* Removed text: Strikethrough with red */
-.cm-diff-removed {
+.cm-cell-diff-removed {
   background-color: rgb(255 0 0 / 10%); /* Light red */
   text-decoration: line-through;
   color: gray;

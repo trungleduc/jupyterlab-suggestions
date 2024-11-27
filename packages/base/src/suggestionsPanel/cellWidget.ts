@@ -22,7 +22,7 @@ export class CellWidget extends Panel {
     super(options);
     const { cellModel } = options;
     this.addClass(suggestionCellStyle);
-
+    this._cellId = cellModel.id as string | undefined;
     const editorExtensions = () => {
       const themes = new EditorThemeRegistry();
       EditorThemeRegistry.getDefaultThemes().forEach(theme => {
@@ -106,6 +106,12 @@ export class CellWidget extends Panel {
     }).initializeState();
     this.addWidget(cellWidget);
   }
+
+  get cellId(): string | undefined {
+    return this._cellId;
+  }
+
+  private _cellId: string | undefined;
 }
 
 export namespace CellWidget {

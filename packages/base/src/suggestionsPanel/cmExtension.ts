@@ -36,7 +36,7 @@ class HighlightDiff {
         // Highlight added text
         decorations.push(
           Decoration.mark({
-            class: 'cm-diff-added'
+            class: 'cm-cell-diff-added'
           }).range(pos, pos + length)
         );
         pos += length; // Move the position for added text
@@ -83,7 +83,7 @@ class RemovedTextWidget extends WidgetType {
   toDOM() {
     const span = document.createElement('span');
     span.textContent = this._text;
-    span.className = 'cm-diff-removed';
+    span.className = 'cm-cell-diff-removed';
     return span;
   }
 
