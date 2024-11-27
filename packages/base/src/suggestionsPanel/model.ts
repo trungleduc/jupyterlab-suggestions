@@ -69,6 +69,23 @@ export class SuggestionsModel implements ISuggestionsModel {
       ...options
     });
   }
+  getCellIndex(cellId?: string): number {
+    if (!cellId) {
+      return -1;
+    }
+
+    const allCells = this._notebookPanel?.content.model?.cells;
+    if (!allCells) {
+      return -1;
+    }
+    for (let idx = 0; idx < allCells.length; idx++) {
+      const element = allCells.get(idx);
+      if (element.id === cellId) {
+        return idx;
+      }
+    }
+    return -1;
+  }
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
       await panel.context.ready;

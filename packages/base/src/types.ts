@@ -23,6 +23,7 @@ export interface ISuggestionsModel extends IDisposable {
     cellId: string;
     suggestionId: string;
   }): { content: ICell } | undefined;
+  getCellIndex(cellId?: string): number;
 }
 
 export interface ISuggestionChange {
