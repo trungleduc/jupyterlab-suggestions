@@ -12,6 +12,7 @@ export interface ISuggestionsModel extends IDisposable {
   currentNotebookPanel: NotebookPanel | null;
   allSuggestions: IAllSuggestions | undefined;
   notebookSwitched: ISignal<ISuggestionsModel, void>;
+  activeCellChanged: ISignal<ISuggestionsModel, { cellId?: string }>;
   suggestionChanged: ISignal<
     ISuggestionsModel,
     Omit<ISuggestionChange, 'notebookPath'>
@@ -22,6 +23,7 @@ export interface ISuggestionsModel extends IDisposable {
     cellId: string;
     suggestionId: string;
   }): { content: ICell } | undefined;
+  getCellIndex(cellId?: string): number;
 }
 
 export interface ISuggestionChange {

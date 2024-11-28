@@ -1,4 +1,4 @@
-import { NotebookPanel } from '@jupyterlab/notebook';
+import { Notebook, NotebookPanel } from '@jupyterlab/notebook';
 import {
   IAllSuggestions,
   ISuggestionChange,
@@ -6,6 +6,7 @@ import {
   ISuggestionsModel
 } from '../types';
 import { ISignal, Signal } from '@lumino/signaling';
+import { Cell, ICellModel } from '@jupyterlab/cells';
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
     this.switchNotebook(options.panel);
@@ -20,6 +21,9 @@ export class SuggestionsModel implements ISuggestionsModel {
   }
   get notebookSwitched(): ISignal<ISuggestionsModel, void> {
     return this._notebookSwitched;
+  }
+  get activeCellChanged(): ISignal<ISuggestionsModel, { cellId?: string }> {
+    return this._activeCellChanged;
   }
   get suggestionChanged(): ISignal<
     ISuggestionsModel,
@@ -65,16 +69,59 @@ export class SuggestionsModel implements ISuggestionsModel {
       ...options
     });
   }
+  getCellIndex(cellId?: string): number {
+    if (!cellId) {
+      return -1;
+    }
+
+    const allCells = this._notebookPanel?.content.model?.cells;
+    if (!allCells) {
+      return -1;
+    }
+    for (let idx = 0; idx < allCells.length; idx++) {
+      const element = allCells.get(idx);
+      if (element.id === cellId) {
+        return idx;
+      }
+    }
+    return -1;
+  }
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
       await panel.context.ready;
       this._allSuggestions = this._suggestionsManager.getAllSuggestions(panel);
     }
+    this._disconnectPanelSignal();
     this._notebookPanel = panel;
+    this._connectPanelSignal();
     this._filePath = this._notebookPanel?.context.localPath;
     this._notebookSwitched.emit();
   }
 
+  private _connectPanelSignal() {
+    if (!this._notebookPanel) {
+      return;
+    }
+    this._notebookPanel.content.activeCellChanged.connect(
+      this._handleActiveCellChanged,
+      this
+    );
+  }
+
+  private _disconnectPanelSignal() {
+    if (!this._notebookPanel) {
+      return;
+    }
+    this._notebookPanel.content.activeCellChanged.disconnect(
+      this._handleActiveCellChanged
+    );
+  }
+  private _handleActiveCellChanged(
+    nb: Notebook,
+    cell: Cell<ICellModel> | null
+  ) {
+    this._activeCellChanged.emit({ cellId: cell?.model.id });
+  }
   private _handleSuggestionChanged(
     manager: ISuggestionsManager,
     changed: ISuggestionChange
@@ -84,6 +131,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._suggestionChanged.emit(newChanged);
     }
   }
+
   private _isDisposed = false;
   private _filePath?: string;
   private _notebookPanel: NotebookPanel | null = null;
@@ -93,6 +141,10 @@ export class SuggestionsModel implements ISuggestionsModel {
   private _suggestionChanged = new Signal<
     ISuggestionsModel,
     Omit<ISuggestionChange, 'notebookPath'>
+  >(this);
+  private _activeCellChanged = new Signal<
+    ISuggestionsModel,
+    { cellId?: string }
   >(this);
 }
 

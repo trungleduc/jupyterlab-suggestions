@@ -1,11 +1,5 @@
+import { IYText } from '@jupyter/ydoc';
 import { Cell, CodeCell, CodeCellModel } from '@jupyterlab/cells';
-import { ICell } from '@jupyterlab/nbformat';
-import {
-  RenderMimeRegistry,
-  standardRendererFactories as initialFactories
-} from '@jupyterlab/rendermime';
-import { Panel } from '@lumino/widgets';
-import { suggestionCellStyle } from './style';
 import {
   CodeMirrorEditorFactory,
   EditorExtensionRegistry,
@@ -13,14 +7,22 @@ import {
   EditorThemeRegistry,
   ybinding
 } from '@jupyterlab/codemirror';
-import { IYText } from '@jupyter/ydoc';
+import { ICell } from '@jupyterlab/nbformat';
+import {
+  RenderMimeRegistry,
+  standardRendererFactories as initialFactories
+} from '@jupyterlab/rendermime';
+import { Panel } from '@lumino/widgets';
+
+import { highlightTextExtension } from './cmExtension';
+import { suggestionCellStyle } from './style';
 
 export class CellWidget extends Panel {
   constructor(options: CellWidget.IOptions) {
     super(options);
     const { cellModel } = options;
     this.addClass(suggestionCellStyle);
-
+    this._cellId = cellModel.id as string | undefined;
     const editorExtensions = () => {
       const themes = new EditorThemeRegistry();
       EditorThemeRegistry.getDefaultThemes().forEach(theme => {
@@ -39,10 +41,17 @@ export class CellWidget extends Panel {
           const sharedModel = options.model.sharedModel as IYText;
           return EditorExtensionRegistry.createImmutableExtension(
             ybinding({
-              ytext: sharedModel.ysource,
-              undoManager: sharedModel.undoManager ?? undefined
+              ytext: sharedModel.ysource
             })
           );
+        }
+      });
+      registry.addExtension({
+        name: 'suggestion-view',
+        factory: options => {
+          return EditorExtensionRegistry.createImmutableExtension([
+            highlightTextExtension
+          ]);
         }
       });
       return registry;
@@ -97,6 +106,12 @@ export class CellWidget extends Panel {
     }).initializeState();
     this.addWidget(cellWidget);
   }
+
+  get cellId(): string | undefined {
+    return this._cellId;
+  }
+
+  private _cellId: string | undefined;
 }
 
 export namespace CellWidget {
