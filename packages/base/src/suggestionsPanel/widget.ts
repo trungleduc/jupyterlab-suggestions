@@ -2,11 +2,8 @@ import { PanelWithToolbar } from '@jupyterlab/ui-components';
 import { Panel } from '@lumino/widgets';
 
 import { ISuggestionChange, ISuggestionsModel } from '../types';
-import { CellWidget } from './cellWidget';
-import {
-  suggestionCellSelectedStyle,
-  suggestionsWidgetAreaStyle
-} from './style';
+import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
+import { suggestionsWidgetAreaStyle } from './style';
 
 export class SuggestionsWidget extends PanelWithToolbar {
   constructor(options: SuggestionsWidget.IOptions) {
@@ -33,14 +30,17 @@ export class SuggestionsWidget extends PanelWithToolbar {
 
     this._model.activeCellChanged.disconnect(this._handleActiveCellChanged);
   }
-  private _updateSuggestions(
+  private async _updateSuggestions(
     _: ISuggestionsModel,
     changedArg: Omit<ISuggestionChange, 'notebookPath'>
   ) {
     const { operator, cellId, suggestionId } = changedArg;
     switch (operator) {
       case 'added': {
-        const suggestion = this._model.getSuggestion({ cellId, suggestionId });
+        const suggestion = await this._model.getSuggestion({
+          cellId,
+          suggestionId
+        });
         if (suggestion) {
           const cellIdx = this._model.getCellIndex(cellId);
 
@@ -53,12 +53,27 @@ export class SuggestionsWidget extends PanelWithToolbar {
           for (let key = 0; key <= cellIdx; key++) {
             suggestionPos += this._indexCount[key] ?? 0;
           }
-
-          const w = new CellWidget({ cellModel: suggestion.content });
+          const deleteCallback = () =>
+            this._model.deleteSuggestion({ cellId, suggestionId });
+          const w = new CellWidget({
+            cellModel: suggestion.content,
+            deleteCallback
+          });
           w.id = suggestionId;
           w.addClass(suggestionCellSelectedStyle);
           this._suggestionsArea.insertWidget(suggestionPos - 1, w);
           this._scrollToWidget(w);
+        }
+        break;
+      }
+      case 'deleted': {
+        const allWidgets = this._suggestionsArea.widgets;
+        for (const element of allWidgets) {
+          if (element.id === suggestionId) {
+            element.dispose();
+            element.parent = null;
+            break;
+          }
         }
         break;
       }
@@ -79,6 +94,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
 
       if (w.cellId === args.cellId) {
         w.addClass(suggestionCellSelectedStyle);
+        w.toggleMinimized(false);
         if (!matched) {
           matched = true;
           this._scrollToWidget(w);
@@ -99,14 +115,21 @@ export class SuggestionsWidget extends PanelWithToolbar {
   }
   private _renderSuggestions() {
     const allSuggestions = this._model.allSuggestions;
-    const allWidgets = [...this._suggestionsArea.widgets];
+    const allWidgets = this._suggestionsArea.widgets;
     for (const element of allWidgets) {
+      element.dispose();
       element.parent = null;
     }
     if (allSuggestions) {
       for (const val of allSuggestions.values()) {
         Object.entries(val).forEach(([suggestionId, suggestionDef]) => {
-          const w = new CellWidget({ cellModel: suggestionDef.content });
+          const cellId = suggestionDef.content.id as string | undefined;
+          const deleteCallback = () =>
+            this._model.deleteSuggestion({ cellId, suggestionId });
+          const w = new CellWidget({
+            cellModel: suggestionDef.content,
+            deleteCallback
+          });
           w.id = suggestionId;
           this._suggestionsArea.addWidget(w);
         });

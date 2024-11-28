@@ -79,6 +79,26 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     return suggestionId;
   }
 
+  async deleteSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+  }): Promise<void> {
+    const { notebook, cellId, suggestionId } = options;
+    const notebookPath = notebook.context.localPath;
+    if (this._suggestionsMap.has(notebookPath)) {
+      const nbSuggestions = this._suggestionsMap.get(notebookPath);
+      if (nbSuggestions && nbSuggestions.has(cellId)) {
+        delete nbSuggestions.get(cellId)![suggestionId];
+        this._suggestionChanged.emit({
+          notebookPath,
+          cellId,
+          suggestionId,
+          operator: 'deleted'
+        });
+      }
+    }
+  }
   private _notebookAdded(tracker: INotebookTracker, panel: NotebookPanel) {
     panel.disposed.connect(p => {
       const localPath = p.context.localPath;

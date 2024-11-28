@@ -18,11 +18,15 @@ export interface ISuggestionsModel extends IDisposable {
     Omit<ISuggestionChange, 'notebookPath'>
   >;
   switchNotebook(panel: NotebookPanel | null): Promise<void>;
-  addSuggestion(): void;
+  addSuggestion(): Promise<void>;
+  deleteSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+  }): Promise<void>;
   getSuggestion(options: {
     cellId: string;
     suggestionId: string;
-  }): { content: ICell } | undefined;
+  }): Promise<{ content: ICell } | undefined>;
   getCellIndex(cellId?: string): number;
 }
 
@@ -46,4 +50,9 @@ export interface ISuggestionsManager extends IDisposable {
     cellId: string;
     suggestionId: string;
   }): { content: ICell } | undefined;
+  deleteSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+  }): Promise<void>;
 }

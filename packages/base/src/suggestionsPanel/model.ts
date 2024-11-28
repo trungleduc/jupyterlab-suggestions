@@ -60,7 +60,20 @@ export class SuggestionsModel implements ISuggestionsModel {
       });
     }
   }
-  getSuggestion(options: { cellId: string; suggestionId: string }) {
+  async deleteSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+  }): Promise<void> {
+    const { cellId, suggestionId } = options;
+    if (cellId && this._notebookPanel) {
+      await this._suggestionsManager.deleteSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId
+      });
+    }
+  }
+  async getSuggestion(options: { cellId: string; suggestionId: string }) {
     if (!this._filePath) {
       return;
     }
