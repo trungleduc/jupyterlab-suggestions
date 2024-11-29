@@ -3,13 +3,12 @@ import {
   IAllSuggestions,
   IDict,
   ISuggestionChange,
+  ISuggestionData,
   ISuggestionsManager
 } from '../types';
 import { ISignal, Signal } from '@lumino/signaling';
 import { Cell, ICellModel } from '@jupyterlab/cells';
 import { UUID } from '@lumino/coreutils';
-import { ICell } from '@jupyterlab/nbformat';
-// import { ICell } from '@jupyterlab/nbformat';
 
 const METADATA_KEY = 'jupyter_suggestion';
 export class LocalSuggestionsManager implements ISuggestionsManager {
@@ -41,7 +40,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     } else {
       const savedSuggestions = notebook.context.model.getMetadata(METADATA_KEY);
       if (savedSuggestions) {
-        const currentSuggestion = new Map<string, IDict<{ content: ICell }>>(
+        const currentSuggestion = new Map<string, IDict<ISuggestionData>>(
           Object.entries(savedSuggestions)
         );
         this._suggestionsMap.set(path, currentSuggestion);
@@ -54,7 +53,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     notebookPath: string;
     cellId: string;
     suggestionId: string;
-  }): { content: ICell } | undefined {
+  }): ISuggestionData | undefined {
     const { notebookPath, cellId, suggestionId } = options;
     if (this._suggestionsMap.has(notebookPath)) {
       const nbSuggestions = this._suggestionsMap.get(notebookPath);
@@ -79,7 +78,11 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     }
     const cellSuggesions = currentSuggestions.get(cellId)!;
     const suggestionId = UUID.uuid4();
-    const suggestionContent = { content: cell.model.toJSON() };
+    const cellModel = cell.model.toJSON();
+    const suggestionContent: ISuggestionData = {
+      content: cellModel,
+      newSource: cellModel.source as string
+    };
     cellSuggesions[suggestionId] = suggestionContent;
     await this._saveSuggestionToMetadata({
       notebook,
@@ -121,6 +124,39 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
       }
     }
   }
+
+  async updateSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+    newSource: string;
+  }): Promise<void> {
+    const { notebook, cellId, suggestionId, newSource } = options;
+    const notebookPath = notebook.context.localPath;
+    if (this._suggestionsMap.has(notebookPath)) {
+      const nbSuggestions = this._suggestionsMap.get(notebookPath);
+      if (
+        nbSuggestions &&
+        nbSuggestions.has(cellId) &&
+        nbSuggestions.get(cellId)![suggestionId]
+      ) {
+        const currentSuggestion = nbSuggestions.get(cellId)![suggestionId];
+        currentSuggestion.newSource = newSource;
+        await this._updateSuggestionInMetadata({
+          notebook,
+          cellId,
+          suggestionId,
+          newSource
+        });
+        this._suggestionChanged.emit({
+          notebookPath,
+          cellId,
+          suggestionId,
+          operator: 'modified'
+        });
+      }
+    }
+  }
   private async _saveSuggestionToMetadata(options: {
     notebook: NotebookPanel;
     cellId: string;
@@ -141,6 +177,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     notebook.context.model.setMetadata(METADATA_KEY, newData);
     await notebook.context.save();
   }
+
   private async _removeSuggestionFromMetadata(options: {
     notebook: NotebookPanel;
     cellId: string;
@@ -158,6 +195,30 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     notebook.context.model.setMetadata(METADATA_KEY, currentSuggestions);
     await notebook.context.save();
   }
+
+  private async _updateSuggestionInMetadata(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+    newSource: string;
+  }) {
+    const { notebook, cellId, suggestionId, newSource } = options;
+    const currentSuggestions: IDict<IDict<ISuggestionData>> | undefined =
+      notebook.context.model.getMetadata(METADATA_KEY);
+    if (
+      !currentSuggestions ||
+      !currentSuggestions[cellId] ||
+      !currentSuggestions[cellId][suggestionId]
+    ) {
+      return;
+    }
+
+    currentSuggestions[cellId][suggestionId].newSource = newSource;
+
+    notebook.context.model.setMetadata(METADATA_KEY, currentSuggestions);
+    await notebook.context.save();
+  }
+
   private _notebookAdded(tracker: INotebookTracker, panel: NotebookPanel) {
     panel.disposed.connect(p => {
       const localPath = p.context.localPath;

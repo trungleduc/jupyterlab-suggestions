@@ -1,10 +1,13 @@
 import { PanelWithToolbar } from '@jupyterlab/ui-components';
 import { Panel } from '@lumino/widgets';
 
-import { ISuggestionChange, ISuggestionsModel } from '../types';
+import {
+  ISuggestionChange,
+  ISuggestionData,
+  ISuggestionsModel
+} from '../types';
 import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
 import { suggestionsWidgetAreaStyle } from './style';
-import { ICell } from '@jupyterlab/nbformat';
 
 export class SuggestionsWidget extends PanelWithToolbar {
   constructor(options: SuggestionsWidget.IOptions) {
@@ -45,7 +48,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
         if (suggestion) {
           const { widget, index } = this._widgetFactory({
             suggestionId,
-            suggestionDef: suggestion
+            suggestionData: suggestion
           });
           widget.addClass(suggestionCellSelectedStyle);
           this._suggestionsArea.insertWidget(index, widget);
@@ -62,6 +65,9 @@ export class SuggestionsWidget extends PanelWithToolbar {
             break;
           }
         }
+        break;
+      }
+      case 'modified': {
         break;
       }
 
@@ -109,10 +115,10 @@ export class SuggestionsWidget extends PanelWithToolbar {
     }
     if (allSuggestions) {
       for (const val of allSuggestions.values()) {
-        Object.entries(val).forEach(([suggestionId, suggestionDef]) => {
+        Object.entries(val).forEach(([suggestionId, suggestionData]) => {
           const { widget, index } = this._widgetFactory({
             suggestionId,
-            suggestionDef
+            suggestionData
           });
           this._suggestionsArea.insertWidget(index, widget);
         });
@@ -122,10 +128,10 @@ export class SuggestionsWidget extends PanelWithToolbar {
 
   private _widgetFactory(options: {
     suggestionId: string;
-    suggestionDef: { content: ICell };
+    suggestionData: ISuggestionData;
   }): { widget: CellWidget; index: number } {
-    const { suggestionId, suggestionDef } = options;
-    const cellId = suggestionDef.content.id as string | undefined;
+    const { suggestionId, suggestionData } = options;
+    const cellId = suggestionData.content.id as string | undefined;
 
     const cellIdx = this._model.getCellIndex(cellId);
 
@@ -139,12 +145,19 @@ export class SuggestionsWidget extends PanelWithToolbar {
       suggestionPos += this._indexCount[key] ?? 0;
     }
 
-    const deleteCallback = () =>
-      this._model.deleteSuggestion({ cellId, suggestionId });
+    const deleteCallback = async () =>
+      await this._model.deleteSuggestion({ cellId, suggestionId });
+
+    const updateCallback = async (newSource: string) => {
+      await this._model.updateSuggestion({ cellId, suggestionId, newSource });
+    };
+
     const w = new CellWidget({
-      cellModel: suggestionDef.content,
-      deleteCallback
+      suggestionData,
+      deleteCallback,
+      updateCallback
     });
+
     w.id = suggestionId;
     return { widget: w, index: suggestionPos - 1 };
   }

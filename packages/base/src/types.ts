@@ -6,7 +6,10 @@ import { ICell } from '@jupyterlab/nbformat';
 export interface IDict<T = any> {
   [key: string]: T;
 }
-
+export interface ISuggestionData {
+  content: ICell;
+  newSource: string;
+}
 export interface ISuggestionsModel extends IDisposable {
   filePath: string;
   currentNotebookPanel: NotebookPanel | null;
@@ -23,10 +26,15 @@ export interface ISuggestionsModel extends IDisposable {
     cellId?: string;
     suggestionId: string;
   }): Promise<void>;
+  updateSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+    newSource: string;
+  }): Promise<void>;
   getSuggestion(options: {
     cellId: string;
     suggestionId: string;
-  }): Promise<{ content: ICell } | undefined>;
+  }): Promise<ISuggestionData | undefined>;
   getCellIndex(cellId?: string): number;
 }
 
@@ -36,7 +44,7 @@ export interface ISuggestionChange {
   operator: 'added' | 'deleted' | 'modified';
   suggestionId: string;
 }
-export type IAllSuggestions = Map<string, IDict<{ content: ICell }>>;
+export type IAllSuggestions = Map<string, IDict<ISuggestionData>>;
 
 export interface ISuggestionsManager extends IDisposable {
   getAllSuggestions(notebook: NotebookPanel): IAllSuggestions | undefined;
@@ -49,10 +57,16 @@ export interface ISuggestionsManager extends IDisposable {
     notebookPath: string;
     cellId: string;
     suggestionId: string;
-  }): { content: ICell } | undefined;
+  }): ISuggestionData | undefined;
   deleteSuggestion(options: {
     notebook: NotebookPanel;
     cellId: string;
     suggestionId: string;
+  }): Promise<void>;
+  updateSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+    newSource: string;
   }): Promise<void>;
 }

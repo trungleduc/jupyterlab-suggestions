@@ -73,6 +73,21 @@ export class SuggestionsModel implements ISuggestionsModel {
       });
     }
   }
+  async updateSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+    newSource: string;
+  }): Promise<void> {
+    const { cellId, suggestionId, newSource } = options;
+    if (cellId && this._notebookPanel) {
+      await this._suggestionsManager.updateSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId,
+        newSource
+      });
+    }
+  }
   async getSuggestion(options: { cellId: string; suggestionId: string }) {
     if (!this._filePath) {
       return;
