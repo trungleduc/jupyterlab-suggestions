@@ -103,6 +103,8 @@ export class SuggestionsModel implements ISuggestionsModel {
     if (panel) {
       await panel.context.ready;
       this._allSuggestions = this._suggestionsManager.getAllSuggestions(panel);
+    } else {
+      this._allSuggestions = undefined;
     }
     this._disconnectPanelSignal();
     this._notebookPanel = panel;
