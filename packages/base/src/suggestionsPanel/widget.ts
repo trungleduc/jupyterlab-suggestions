@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
 import { suggestionsWidgetAreaStyle } from './style';
+import { Dialog, showDialog } from '@jupyterlab/apputils';
 
 export class SuggestionsWidget extends PanelWithToolbar {
   constructor(options: SuggestionsWidget.IOptions) {
@@ -145,15 +146,38 @@ export class SuggestionsWidget extends PanelWithToolbar {
       suggestionPos += this._indexCount[key] ?? 0;
     }
 
-    const deleteCallback = async () =>
-      await this._model.deleteSuggestion({ cellId, suggestionId });
+    const deleteCallback = async () => {
+      const { button } = await showDialog({
+        title: 'Discard suggestion',
+        body: 'Do you want to discard the suggestion?',
+        buttons: [Dialog.cancelButton(), Dialog.okButton()],
+        hasClose: true
+      });
+      if (button.accept) {
+        await this._model.deleteSuggestion({ cellId, suggestionId });
+      }
+    };
 
     const updateCallback = async (newSource: string) => {
       await this._model.updateSuggestion({ cellId, suggestionId, newSource });
     };
 
     const acceptCallback = async () => {
-      await this._model.acceptSuggestion({ cellId, suggestionId });
+      const accepted = await this._model.acceptSuggestion({
+        cellId,
+        suggestionId
+      });
+      if (!accepted) {
+        const { button } = await showDialog({
+          title: 'Error accepting suggestion',
+          body: 'Cannot accept suggestion, do you want to discard it?',
+          buttons: [Dialog.cancelButton(), Dialog.okButton()],
+          hasClose: true
+        });
+        if (button.accept) {
+          await this._model.deleteSuggestion({ cellId, suggestionId });
+        }
+      }
     };
     const w = new CellWidget({
       suggestionData,

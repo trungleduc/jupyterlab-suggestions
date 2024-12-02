@@ -77,15 +77,16 @@ export class SuggestionsModel implements ISuggestionsModel {
   async acceptSuggestion(options: {
     cellId?: string;
     suggestionId: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const { cellId, suggestionId } = options;
     if (cellId && this._notebookPanel) {
-      await this._suggestionsManager.acceptSuggestion({
+      return await this._suggestionsManager.acceptSuggestion({
         notebook: this._notebookPanel,
         cellId,
         suggestionId
       });
     }
+    return false;
   }
   async updateSuggestion(options: {
     cellId?: string;

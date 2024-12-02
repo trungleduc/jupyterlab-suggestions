@@ -105,7 +105,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     notebook: NotebookPanel;
     cellId: string;
     suggestionId: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const { notebook, cellId, suggestionId } = options;
     const notebookPath = notebook.context.localPath;
 
@@ -120,10 +120,11 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
         if (element.id === cellId) {
           element.sharedModel.setSource(newSource);
           await this.deleteSuggestion(options);
-          break;
+          return true;
         }
       }
     }
+    return false;
   }
 
   async deleteSuggestion(options: {

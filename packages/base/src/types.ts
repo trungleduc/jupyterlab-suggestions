@@ -92,12 +92,13 @@ export interface ISuggestionsModel extends IDisposable {
    *
    * @param options - An object containing the cell ID (optional)
    * and suggestion ID.
-   * @returns A promise that resolves when the suggestion is accepted.
+   * @returns A promise that resolves `true` when the suggestion is
+   * accepted, `false` otherwise
    */
   acceptSuggestion(options: {
     cellId?: string;
     suggestionId: string;
-  }): Promise<void>;
+  }): Promise<boolean>;
 
   /**
    * Updates the content of a suggestion in a specified cell.
@@ -208,13 +209,14 @@ export interface ISuggestionsManager extends IDisposable {
    *
    * @param options - An object containing the notebook, cell ID,
    * and suggestion ID.
-   * @returns A promise that resolves when the suggestion is accepted.
+   * @returns A promise that resolves `true` when the suggestion is
+   * accepted, `false` otherwise
    */
   acceptSuggestion(options: {
     notebook: NotebookPanel;
     cellId: string;
     suggestionId: string;
-  }): Promise<void>;
+  }): Promise<boolean>;
 
   /**
    * Updates the content of a suggestion in a specified cell.
