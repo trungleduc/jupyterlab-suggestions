@@ -73,6 +73,20 @@ export class SuggestionsModel implements ISuggestionsModel {
       });
     }
   }
+
+  async acceptSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+  }): Promise<void> {
+    const { cellId, suggestionId } = options;
+    if (cellId && this._notebookPanel) {
+      await this._suggestionsManager.acceptSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId
+      });
+    }
+  }
   async updateSuggestion(options: {
     cellId?: string;
     suggestionId: string;
@@ -92,7 +106,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     if (!this._filePath) {
       return;
     }
-    return this._suggestionsManager.getSuggestion({
+    return await this._suggestionsManager.getSuggestion({
       notebookPath: this._filePath,
       ...options
     });
@@ -117,7 +131,8 @@ export class SuggestionsModel implements ISuggestionsModel {
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
       await panel.context.ready;
-      this._allSuggestions = this._suggestionsManager.getAllSuggestions(panel);
+      this._allSuggestions =
+        await this._suggestionsManager.getAllSuggestions(panel);
     } else {
       this._allSuggestions = undefined;
     }

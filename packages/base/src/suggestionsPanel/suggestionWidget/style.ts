@@ -20,11 +20,7 @@ export const suggestionCellStyle = style({
     '.minimize': {
       height: 0,
       overflow: 'hidden',
-      $nest: {
-        '.jp-Cell': {
-          padding: '0!important'
-        }
-      }
+      padding: '0!important'
     }
   }
 });

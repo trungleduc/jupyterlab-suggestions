@@ -152,10 +152,14 @@ export class SuggestionsWidget extends PanelWithToolbar {
       await this._model.updateSuggestion({ cellId, suggestionId, newSource });
     };
 
+    const acceptCallback = async () => {
+      await this._model.acceptSuggestion({ cellId, suggestionId });
+    };
     const w = new CellWidget({
       suggestionData,
       deleteCallback,
-      updateCallback
+      updateCallback,
+      acceptCallback
     });
 
     w.id = suggestionId;

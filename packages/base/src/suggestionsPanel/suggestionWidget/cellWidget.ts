@@ -37,6 +37,7 @@ export class CellWidget extends Panel {
     const toolbar = new SuggestionToolbar({
       toggleMinimized: this.toggleMinimized.bind(this),
       deleteCallback: options.deleteCallback,
+      acceptCallback: options.acceptCallback,
       state: this._state
     });
     this.addWidget(toolbar);
@@ -174,6 +175,7 @@ export namespace CellWidget {
   export interface IOptions extends Panel.IOptions {
     suggestionData: ISuggestionData;
     deleteCallback: () => Promise<void>;
+    acceptCallback: () => Promise<void>;
     updateCallback: (content: string) => Promise<void>;
   }
 }

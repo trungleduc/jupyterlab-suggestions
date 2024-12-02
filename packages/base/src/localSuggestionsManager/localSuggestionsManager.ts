@@ -33,7 +33,9 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     this._isDisposed = true;
   }
 
-  getAllSuggestions(notebook: NotebookPanel): IAllSuggestions | undefined {
+  async getAllSuggestions(
+    notebook: NotebookPanel
+  ): Promise<IAllSuggestions | undefined> {
     const path = notebook.context.localPath;
     if (this._suggestionsMap.has(path)) {
       return this._suggestionsMap.get(path);
@@ -49,11 +51,11 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     }
   }
 
-  getSuggestion(options: {
+  async getSuggestion(options: {
     notebookPath: string;
     cellId: string;
     suggestionId: string;
-  }): ISuggestionData | undefined {
+  }): Promise<ISuggestionData | undefined> {
     const { notebookPath, cellId, suggestionId } = options;
     if (this._suggestionsMap.has(notebookPath)) {
       const nbSuggestions = this._suggestionsMap.get(notebookPath);
@@ -97,6 +99,31 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
       operator: 'added'
     });
     return suggestionId;
+  }
+
+  async acceptSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+  }): Promise<void> {
+    const { notebook, cellId, suggestionId } = options;
+    const notebookPath = notebook.context.localPath;
+
+    const currentSuggestion = await this.getSuggestion({
+      notebookPath,
+      cellId,
+      suggestionId
+    });
+    if (currentSuggestion && notebook.content.model?.cells) {
+      const { newSource } = currentSuggestion;
+      for (const element of notebook.content.model.cells) {
+        if (element.id === cellId) {
+          element.sharedModel.setSource(newSource);
+          await this.deleteSuggestion(options);
+          break;
+        }
+      }
+    }
   }
 
   async deleteSuggestion(options: {

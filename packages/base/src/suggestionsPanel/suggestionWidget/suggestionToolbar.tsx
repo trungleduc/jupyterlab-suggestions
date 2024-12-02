@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ReactWidget, ToolbarButtonComponent } from '@jupyterlab/apputils';
 import { toolbarButtonStyle, toolbarStyle } from './style';
-import { closeIcon } from '@jupyterlab/ui-components';
+import { checkIcon, closeIcon } from '@jupyterlab/ui-components';
 import { collapseIcon, expandIcon } from '../../icons';
 import { IObservableMap } from '@jupyterlab/observables';
 import { JSONValue } from '@lumino/coreutils';
@@ -10,6 +10,7 @@ interface IProps {
   state: IObservableMap<JSONValue>;
   toggleMinimized: (min: boolean) => void;
   deleteCallback: () => Promise<void>;
+  acceptCallback: () => Promise<void>;
 }
 function _SuggestionToolbarReact(props: IProps) {
   const minimizeClick = React.useCallback(() => {
@@ -35,7 +36,13 @@ function _SuggestionToolbarReact(props: IProps) {
         className={toolbarButtonStyle}
         icon={closeIcon}
         onClick={props.deleteCallback}
-        iconLabel="Delete"
+        iconLabel={'Delete'}
+      />
+      <ToolbarButtonComponent
+        className={toolbarButtonStyle}
+        icon={checkIcon}
+        onClick={props.acceptCallback}
+        iconLabel={'Accept suggestion'}
       />
       <ToolbarButtonComponent
         className={toolbarButtonStyle}
