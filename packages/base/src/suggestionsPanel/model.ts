@@ -60,11 +60,54 @@ export class SuggestionsModel implements ISuggestionsModel {
       });
     }
   }
-  getSuggestion(options: { cellId: string; suggestionId: string }) {
+  async deleteSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+  }): Promise<void> {
+    const { cellId, suggestionId } = options;
+    if (cellId && this._notebookPanel) {
+      await this._suggestionsManager.deleteSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId
+      });
+    }
+  }
+
+  async acceptSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+  }): Promise<boolean> {
+    const { cellId, suggestionId } = options;
+    if (cellId && this._notebookPanel) {
+      return await this._suggestionsManager.acceptSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId
+      });
+    }
+    return false;
+  }
+  async updateSuggestion(options: {
+    cellId?: string;
+    suggestionId: string;
+    newSource: string;
+  }): Promise<void> {
+    const { cellId, suggestionId, newSource } = options;
+    if (cellId && this._notebookPanel) {
+      await this._suggestionsManager.updateSuggestion({
+        notebook: this._notebookPanel,
+        cellId,
+        suggestionId,
+        newSource
+      });
+    }
+  }
+  async getSuggestion(options: { cellId: string; suggestionId: string }) {
     if (!this._filePath) {
       return;
     }
-    return this._suggestionsManager.getSuggestion({
+    return await this._suggestionsManager.getSuggestion({
       notebookPath: this._filePath,
       ...options
     });
@@ -89,7 +132,10 @@ export class SuggestionsModel implements ISuggestionsModel {
   async switchNotebook(panel: NotebookPanel | null): Promise<void> {
     if (panel) {
       await panel.context.ready;
-      this._allSuggestions = this._suggestionsManager.getAllSuggestions(panel);
+      this._allSuggestions =
+        await this._suggestionsManager.getAllSuggestions(panel);
+    } else {
+      this._allSuggestions = undefined;
     }
     this._disconnectPanelSignal();
     this._notebookPanel = panel;

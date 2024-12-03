@@ -8,10 +8,10 @@ import {
 } from '@codemirror/view';
 import * as Diff from 'diff';
 class HighlightDiff {
-  constructor(view: EditorView) {
+  constructor(view: EditorView, options: { originalSource: string }) {
     this._view = view;
     this.decorations = Decoration.none;
-    this._originalText = this._view.state.doc.toString();
+    this._originalText = options.originalSource;
     this.updateDecorations();
   }
 
@@ -61,8 +61,8 @@ class HighlightDiff {
   }
 
   decorations: DecorationSet;
-  private _originalText: string;
-  private _view: EditorView;
+  _originalText: string;
+  _view: EditorView;
 }
 /**
  * Widget to show removed text
@@ -98,8 +98,15 @@ class RemovedTextWidget extends WidgetType {
   private _text: string;
 }
 
-export const highlightTextExtension = [
-  ViewPlugin.fromClass(HighlightDiff, {
-    decorations: (v: HighlightDiff) => v.decorations
-  })
-];
+export function diffTextExtensionFactory(options: { originalSource: string }) {
+  return ViewPlugin.fromClass(
+    class extends HighlightDiff {
+      constructor(view: any) {
+        super(view, options);
+      }
+    },
+    {
+      decorations: (v: HighlightDiff) => v.decorations
+    }
+  );
+}

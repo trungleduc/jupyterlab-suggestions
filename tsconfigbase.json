@@ -5,7 +5,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "incremental": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "jsx": "react",
     "module": "esnext",
     "moduleResolution": "node",
@@ -14,11 +14,9 @@
     "noUnusedLocals": true,
     "preserveWatchOutput": true,
     "resolveJsonModule": true,
-    "outDir": "lib",
-    "rootDir": "python/jupyter_suggestions_core/src",
     "strict": true,
     "strictNullChecks": true,
-    "target": "ES2018"
-  },
-  "include": ["python/jupyter_suggestions_core/src/*"]
+    "target": "ES2018",
+    "lib": ["es2022.intl", "dom"]
+  }
 }

@@ -41,6 +41,7 @@
     "@jupyterlab/docregistry": "^4.0.0",
     "@jupyterlab/nbformat": "^4.0.0",
     "@jupyterlab/notebook": "^4.0.0",
+    "@jupyterlab/observables": "^4.0.0",
     "@jupyterlab/rendermime": "^4.0.0",
     "@jupyterlab/ui-components": "^4.0.0",
     "@lumino/coreutils": "^2.0.0",
