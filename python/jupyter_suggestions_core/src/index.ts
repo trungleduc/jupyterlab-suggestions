@@ -2,10 +2,12 @@ import {
   suggestionsModelPlugin,
   suggestionsPanelPlugin,
   commandsPlugin,
-  suggestionsManagerPlugin
+  suggestionsManagerPlugin,
+  registryPlugin
 } from './plugins';
 
 export default [
+  registryPlugin,
   suggestionsModelPlugin,
   suggestionsPanelPlugin,
   commandsPlugin,

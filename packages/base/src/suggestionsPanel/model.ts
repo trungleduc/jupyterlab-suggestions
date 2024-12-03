@@ -10,11 +10,7 @@ import { Cell, ICellModel } from '@jupyterlab/cells';
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
     this.switchNotebook(options.panel);
-    this._suggestionsManager = options.suggestionsManager;
-    this._suggestionsManager.suggestionChanged.connect(
-      this._handleSuggestionChanged,
-      this
-    );
+    this.switchManager(options.suggestionsManager);
   }
   get filePath(): string {
     return this._filePath ?? '-';
@@ -45,7 +41,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       return;
     }
     this._isDisposed = true;
-    this._suggestionsManager.suggestionChanged.disconnect(
+    this._suggestionsManager?.suggestionChanged.disconnect(
       this._handleSuggestionChanged
     );
     Signal.clearData(this);
@@ -53,7 +49,7 @@ export class SuggestionsModel implements ISuggestionsModel {
 
   async addSuggestion(): Promise<void> {
     const activeCell = this._notebookPanel?.content.activeCell;
-    if (activeCell && this._notebookPanel) {
+    if (activeCell && this._notebookPanel && this._suggestionsManager) {
       await this._suggestionsManager.addSuggestion({
         notebook: this._notebookPanel,
         cell: activeCell
@@ -65,7 +61,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     suggestionId: string;
   }): Promise<void> {
     const { cellId, suggestionId } = options;
-    if (cellId && this._notebookPanel) {
+    if (cellId && this._notebookPanel && this._suggestionsManager) {
       await this._suggestionsManager.deleteSuggestion({
         notebook: this._notebookPanel,
         cellId,
@@ -79,7 +75,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     suggestionId: string;
   }): Promise<boolean> {
     const { cellId, suggestionId } = options;
-    if (cellId && this._notebookPanel) {
+    if (cellId && this._notebookPanel && this._suggestionsManager) {
       return await this._suggestionsManager.acceptSuggestion({
         notebook: this._notebookPanel,
         cellId,
@@ -94,7 +90,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     newSource: string;
   }): Promise<void> {
     const { cellId, suggestionId, newSource } = options;
-    if (cellId && this._notebookPanel) {
+    if (cellId && this._notebookPanel && this._suggestionsManager) {
       await this._suggestionsManager.updateSuggestion({
         notebook: this._notebookPanel,
         cellId,
@@ -104,7 +100,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     }
   }
   async getSuggestion(options: { cellId: string; suggestionId: string }) {
-    if (!this._filePath) {
+    if (!this._filePath || !this._suggestionsManager) {
       return;
     }
     return await this._suggestionsManager.getSuggestion({
@@ -133,7 +129,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     if (panel) {
       await panel.context.ready;
       this._allSuggestions =
-        await this._suggestionsManager.getAllSuggestions(panel);
+        await this._suggestionsManager?.getAllSuggestions(panel);
     } else {
       this._allSuggestions = undefined;
     }
@@ -143,7 +139,25 @@ export class SuggestionsModel implements ISuggestionsModel {
     this._filePath = this._notebookPanel?.context.localPath;
     this._notebookSwitched.emit();
   }
+  async switchManager(manager: ISuggestionsManager | undefined): Promise<void> {
+    if (!manager) {
+      return;
+    }
+    this._suggestionsManager?.suggestionChanged.disconnect(
+      this._handleSuggestionChanged
+    );
 
+    this._suggestionsManager = manager;
+    this._suggestionsManager.suggestionChanged.connect(
+      this._handleSuggestionChanged,
+      this
+    );
+    if (this._notebookPanel) {
+      this._allSuggestions = await this._suggestionsManager?.getAllSuggestions(
+        this._notebookPanel
+      );
+    }
+  }
   private _connectPanelSignal() {
     if (!this._notebookPanel) {
       return;
@@ -183,7 +197,7 @@ export class SuggestionsModel implements ISuggestionsModel {
   private _notebookPanel: NotebookPanel | null = null;
   private _notebookSwitched: Signal<this, void> = new Signal(this);
   private _allSuggestions?: IAllSuggestions;
-  private _suggestionsManager: ISuggestionsManager;
+  private _suggestionsManager?: ISuggestionsManager;
   private _suggestionChanged = new Signal<
     ISuggestionsModel,
     Omit<ISuggestionChange, 'notebookPath'>
@@ -197,6 +211,6 @@ export class SuggestionsModel implements ISuggestionsModel {
 export namespace SuggestionsModel {
   export interface IOptions {
     panel: NotebookPanel | null;
-    suggestionsManager: ISuggestionsManager;
+    suggestionsManager?: ISuggestionsManager;
   }
 }

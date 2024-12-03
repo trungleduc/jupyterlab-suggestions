@@ -46,7 +46,11 @@
   "dependencies": {
     "@jupyter/jupyter-suggestions-base": "^0.1.0",
     "@jupyterlab/application": "^4.0.0",
-    "@jupyterlab/notebook": "^4.0.0"
+    "@jupyterlab/notebook": "^4.0.0",
+    "@jupyterlab/settingregistry": "^4.0.0",
+    "@jupyterlab/translation": "^4.0.0",
+    "@jupyterlab/ui-components": "^4.0.0",
+    "@rjsf/utils": "^5.22.0"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^4.0.0",

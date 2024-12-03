@@ -69,6 +69,14 @@ export interface ISuggestionsModel extends IDisposable {
   switchNotebook(panel: NotebookPanel | null): Promise<void>;
 
   /**
+   * Switches the active suggestion manager.
+   *
+   * @param manager - The new suggestion to activate.
+   * @returns A promise that resolves when the switch is complete.
+   */
+  switchManager(manager: ISuggestionsManager | undefined): Promise<void>;
+
+  /**
    * Adds a new suggestion to the currently active cell.
    *
    * @returns A promise that resolves when the suggestion is added.
@@ -231,4 +239,16 @@ export interface ISuggestionsManager extends IDisposable {
     suggestionId: string;
     newSource: string;
   }): Promise<void>;
+}
+
+export interface ISuggestionsManagerRegistry extends IDisposable {
+  register(options: {
+    id: string;
+    manager: ISuggestionsManager;
+  }): Promise<boolean>;
+  getActivatedManager(): Promise<ISuggestionsManager | undefined>;
+  setManager(id: string): Promise<boolean>;
+  getAllManagers(): string[];
+  managerChanged: ISignal<ISuggestionsManagerRegistry, ISuggestionsManager>;
+  managerRegistered: ISignal<ISuggestionsManagerRegistry, string>;
 }
