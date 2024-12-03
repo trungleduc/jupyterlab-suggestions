@@ -169,7 +169,6 @@ export const registryPlugin: JupyterFrontEndPlugin<ISuggestionsManagerRegistry> 
     ) => {
       const SETTING_KEY = 'suggestionsManager';
       const pluginId = `${NAME_SPACE}:registry`;
-      console.log(pluginId);
       const registryManager = new SuggestionsManagerRegistry();
       const translator = translator_ ?? nullTranslator;
 
@@ -184,10 +183,17 @@ export const registryPlugin: JupyterFrontEndPlugin<ISuggestionsManagerRegistry> 
           renderer
         );
       }
+
+      const updateOptions = async (settings: ISettingRegistry.ISettings) => {
+        const options = settings.composite as { suggestionsManager: string };
+        await registryManager.setManager(options.suggestionsManager);
+      };
+
       settingRegistry.transform(pluginId, {
         fetch: plugin => {
           const schemaProperties = plugin.schema.properties!;
           const allManagers = registryManager.getAllManagers();
+
           if (allManagers.length) {
             schemaProperties[SETTING_KEY]['availableManagers'] = allManagers;
           }
@@ -198,7 +204,10 @@ export const registryPlugin: JupyterFrontEndPlugin<ISuggestionsManagerRegistry> 
       settingRegistry
         .load(pluginId)
         .then(settings => {
-          //
+          updateOptions(settings);
+          settings.changed.connect(() => {
+            updateOptions(settings);
+          });
         })
         .catch((reason: Error) => {
           console.error(reason);

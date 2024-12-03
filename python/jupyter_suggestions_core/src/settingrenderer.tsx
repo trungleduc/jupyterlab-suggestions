@@ -1,11 +1,8 @@
-// Copyright (c) Jupyter Development Team.
-// Distributed under the terms of the Modified BSD License.
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { FieldProps } from '@rjsf/utils';
-import { ISettingRegistry } from '@jupyterlab/settingregistry';
-
 const SETTING_NAME = 'suggestionsManager';
 
 interface IProps extends FieldProps {
@@ -31,7 +28,7 @@ export function SuggestionsSettingComponent(props: IProps): JSX.Element {
   const [state, setState] = useState(selectedValue);
   const allOptions = useMemo(() => {
     const allManagers = schema['availableManagers'] as string[];
-    return ['None', ...allManagers].map(it => ({ value: it, label: it }));
+    return [...allManagers].map(it => ({ value: it, label: it }));
   }, [schema]);
 
   const onChange = useCallback(

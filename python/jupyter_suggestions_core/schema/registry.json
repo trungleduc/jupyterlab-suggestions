@@ -10,8 +10,8 @@
       "title": "Suggestions Manager",
       "type": "string",
       "description": "Select the suggestions manager",
-      "availableManagers": ["None"],
-      "default": "None"
+      "availableManagers": ["Local Suggestion Manager"],
+      "default": "Local Suggestion Manager"
     }
   }
 }

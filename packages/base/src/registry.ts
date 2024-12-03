@@ -37,11 +37,11 @@ export class SuggestionsManagerRegistry implements ISuggestionsManagerRegistry {
   }
 
   async setManager(id: string): Promise<boolean> {
-    if (this._managers.has(id)) {
-      console.error(`Suggestions manager with id ${id} does not exist!`);
+    if (!this._managers.has(id)) {
       return false;
     }
-    this._currentManager = this._managers.get(id);
+    this._currentManager = this._managers.get(id)!;
+    this._managerChanged.emit(this._currentManager);
     return true;
   }
 
