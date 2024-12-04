@@ -1,9 +1,9 @@
 {
   "jupyter.lab.setting-icon": "jupyter-suggestions:hintIcon",
-  "jupyter.lab.setting-icon-label": "Jupyter Suggestions",
+  "jupyter.lab.setting-icon-label": "Suggestions",
   "jupyter.lab.transform": true,
-  "title": "Jupyter Suggestions",
-  "description": "Jupyter Suggestions settings.",
+  "title": "Suggestions",
+  "description": "Suggestions settings.",
   "type": "object",
   "properties": {
     "suggestionsManager": {
