@@ -147,7 +147,7 @@ export const suggestionsManagerPlugin: JupyterFrontEndPlugin<void> = {
         manager
       });
       if (!success) {
-        console.log('Failed to register the local suggetion manager');
+        console.log('Failed to register the local suggestion manager');
       }
     }
   }
