@@ -520,6 +520,10 @@ __metadata:
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
     "@jupyterlab/notebook": ^4.0.0
+    "@jupyterlab/settingregistry": ^4.0.0
+    "@jupyterlab/translation": ^4.0.0
+    "@jupyterlab/ui-components": ^4.0.0
+    "@rjsf/utils": ^5.22.0
     rimraf: ^3.0.2
     typescript: ^5
     yjs: ^13.5.0
@@ -540,6 +544,7 @@ __metadata:
     eslint: ^8.36.0
     eslint-config-prettier: ^8.8.0
     eslint-plugin-prettier: ^5.0.0
+    eslint-plugin-react-hooks: ^4.6.2
     lerna: ^7.0.0
     npm-run-all: ^4.1.5
     prettier: ^3.0.0
@@ -1085,7 +1090,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/settingregistry@npm:^4.3.1":
+"@jupyterlab/settingregistry@npm:^4.0.0, @jupyterlab/settingregistry@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/settingregistry@npm:4.3.1"
   dependencies:
@@ -1156,7 +1161,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/translation@npm:^4.3.1":
+"@jupyterlab/translation@npm:^4.0.0, @jupyterlab/translation@npm:^4.3.1":
   version: 4.3.1
   resolution: "@jupyterlab/translation@npm:4.3.1"
   dependencies:
@@ -2127,6 +2132,21 @@ __metadata:
   peerDependencies:
     react: ^16.14.0 || >=17
   checksum: 7dddc74b910fb7b87ebddc564879126b100f14eee853c0fbc390faa6c5f944a70023f34925a360aa92915f4e9c56bccf57141db9fe7b3c6a97348d886794bab8
+  languageName: node
+  linkType: hard
+
+"@rjsf/utils@npm:^5.22.0":
+  version: 5.23.1
+  resolution: "@rjsf/utils@npm:5.23.1"
+  dependencies:
+    json-schema-merge-allof: ^0.8.1
+    jsonpointer: ^5.0.1
+    lodash: ^4.17.21
+    lodash-es: ^4.17.21
+    react-is: ^18.2.0
+  peerDependencies:
+    react: ^16.14.0 || >=17
+  checksum: 7580419cf07416fe1e608ed171c30b25b3a78cfebba7d97e3120fe2e40f702fd0e61494e6c823281091522b053a39a83ab31ceb97c078cfb39ac636dc2d997c1
   languageName: node
   linkType: hard
 
@@ -4385,6 +4405,15 @@ __metadata:
     eslint-config-prettier:
       optional: true
   checksum: 812f4d1596dcd3a55963212dfbd818a4b38f880741aac75f6869aa740dc5d934060674d3b85d10ff9fec424defa61967dbdef26b8a893a92c9b51880264ed0d9
+  languageName: node
+  linkType: hard
+
+"eslint-plugin-react-hooks@npm:^4.6.2":
+  version: 4.6.2
+  resolution: "eslint-plugin-react-hooks@npm:4.6.2"
+  peerDependencies:
+    eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
+  checksum: 395c433610f59577cfcf3f2e42bcb130436c8a0b3777ac64f441d88c5275f4fcfc89094cedab270f2822daf29af1079151a7a6579a8e9ea8cee66540ba0384c4
   languageName: node
   linkType: hard
 
@@ -9774,7 +9803,7 @@ __metadata:
 
 "typescript@patch:typescript@>=3 < 6#~builtin<compat/typescript>, typescript@patch:typescript@^5#~builtin<compat/typescript>":
   version: 5.6.3
-  resolution: "typescript@patch:typescript@npm%3A5.6.3#~builtin<compat/typescript>::version=5.6.3&hash=e012d7"
+  resolution: "typescript@patch:typescript@npm%3A5.6.3#~builtin<compat/typescript>::version=5.6.3&hash=85af82"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
@@ -9784,11 +9813,11 @@ __metadata:
 
 "typescript@patch:typescript@~5.0.2#~builtin<compat/typescript>":
   version: 5.0.4
-  resolution: "typescript@patch:typescript@npm%3A5.0.4#~builtin<compat/typescript>::version=5.0.4&hash=b5f058"
+  resolution: "typescript@patch:typescript@npm%3A5.0.4#~builtin<compat/typescript>::version=5.0.4&hash=85af82"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: d26b6ba97b6d163c55dbdffd9bbb4c211667ebebc743accfeb2c8c0154aace7afd097b51165a72a5bad2cf65a4612259344ff60f8e642362aa1695c760d303ac
+  checksum: bb309d320c59a26565fb3793dba550576ab861018ff3fd1b7fccabbe46ae4a35546bc45f342c0a0b6f265c801ccdf64ffd68f548f117ceb7f0eac4b805cd52a9
   languageName: node
   linkType: hard
 

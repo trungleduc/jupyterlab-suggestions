@@ -1,0 +1,17 @@
+{
+  "jupyter.lab.setting-icon": "jupyter-suggestions:hintIcon",
+  "jupyter.lab.setting-icon-label": "Suggestions",
+  "jupyter.lab.transform": true,
+  "title": "Suggestions",
+  "description": "Suggestions settings.",
+  "type": "object",
+  "properties": {
+    "suggestionsManager": {
+      "title": "Suggestions Manager",
+      "type": "string",
+      "description": "Select the suggestions manager",
+      "availableManagers": ["Local Suggestion Manager"],
+      "default": "Local Suggestion Manager"
+    }
+  }
+}

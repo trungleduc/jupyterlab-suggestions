@@ -1,6 +1,6 @@
 # jupyterlab_suggestions
 
-[![Github Actions Status](https://github.com/QuantStack/jupyterlab-suggestions/workflows/Build/badge.svg)](https://github.com/QuantStack/jupyterlab-suggestions/actions/workflows/build.yml)
+[![Github Actions Status](https://github.com/QuantStack/jupyter-suggestions/workflows/Build/badge.svg)](https://github.com/QuantStack/jupyter-suggestions/actions/workflows/build.yml)
 
 A JupyterLab extension for suggesting changes.
 

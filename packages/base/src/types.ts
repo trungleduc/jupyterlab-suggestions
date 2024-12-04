@@ -69,6 +69,14 @@ export interface ISuggestionsModel extends IDisposable {
   switchNotebook(panel: NotebookPanel | null): Promise<void>;
 
   /**
+   * Switches the active suggestion manager.
+   *
+   * @param manager - The new suggestion to activate.
+   * @returns A promise that resolves when the switch is complete.
+   */
+  switchManager(manager: ISuggestionsManager | undefined): Promise<void>;
+
+  /**
    * Adds a new suggestion to the currently active cell.
    *
    * @returns A promise that resolves when the suggestion is added.
@@ -231,4 +239,68 @@ export interface ISuggestionsManager extends IDisposable {
     suggestionId: string;
     newSource: string;
   }): Promise<void>;
+}
+
+/**
+ * Interface defining the structure and behavior of a suggestions manager
+ * registry.
+ *
+ * The `ISuggestionsManagerRegistry` interface provides mechanisms for
+ * registering, managing, and switching between multiple suggestions managers.
+ * It supports operations such as activation, retrieval, and event signaling for
+ * changes in managers.
+ */
+export interface ISuggestionsManagerRegistry extends IDisposable {
+  /**
+   * Registers a new suggestions manager with the registry.
+   *
+   * @param options - An object containing:
+   *   - `id`: A unique identifier for the manager.
+   *   - `manager`: The instance of the `ISuggestionsManager` to register.
+   * @returns A promise that resolves to `true` if the manager was successfully
+   * registered, or `false` if a manager with the same ID already exists.
+   */
+  register(options: {
+    id: string;
+    manager: ISuggestionsManager;
+  }): Promise<boolean>;
+
+  /**
+   * Retrieves the currently activated suggestions manager.
+   *
+   * @returns A promise that resolves to the activated `ISuggestionsManager`,
+   * or `undefined` if no manager is currently activated.
+   */
+  getActivatedManager(): Promise<ISuggestionsManager | undefined>;
+
+  /**
+   * Activates a specific suggestions manager by its ID.
+   *
+   * @param id - The unique identifier of the manager to activate.
+   * @returns A promise that resolves to `true` if the manager was successfully
+   * activated or `false` if no manager with the specified ID exists.
+   */
+  setManager(id: string): Promise<boolean>;
+
+  /**
+   * Retrieves a list of all registered manager IDs.
+   *
+   * @returns An array of strings, each representing the unique ID
+   * of a registered manager.
+   */
+  getAllManagers(): string[];
+
+  /**
+   * Signal emitted when the active manager is changed.
+   *
+   * The signal emits the newly activated `ISuggestionsManager` instance.
+   */
+  managerChanged: ISignal<ISuggestionsManagerRegistry, ISuggestionsManager>;
+
+  /**
+   * Signal emitted when a new manager is registered.
+   *
+   * The signal emits the unique ID of the newly registered manager.
+   */
+  managerRegistered: ISignal<ISuggestionsManagerRegistry, string>;
 }

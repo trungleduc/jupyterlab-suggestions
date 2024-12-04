@@ -13,23 +13,24 @@ interface IProps {
   acceptCallback: () => Promise<void>;
 }
 function _SuggestionToolbarReact(props: IProps) {
+  const { toggleMinimized, state } = props;
   const minimizeClick = React.useCallback(() => {
-    props.toggleMinimized(!props.state.get('minimized'));
-  }, [props.toggleMinimized, props.state]);
+    toggleMinimized(!state.get('minimized'));
+  }, [toggleMinimized, state]);
 
   const [elementState, setElementState] = React.useState({
-    minimized: props.state.get('minimized')
+    minimized: state.get('minimized')
   });
   React.useEffect(() => {
     const handler = () => {
-      const current = props.state.get('minimized');
+      const current = state.get('minimized');
       setElementState(old => ({ ...old, minimized: current }));
     };
-    props.state.changed.connect(handler);
+    state.changed.connect(handler);
     return () => {
-      props.state.changed.disconnect(handler);
+      state.changed.disconnect(handler);
     };
-  }, [props.state]);
+  }, [state]);
   return (
     <div className={toolbarStyle}>
       <ToolbarButtonComponent
