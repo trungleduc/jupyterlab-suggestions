@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["jupyter-collaboration>=3.1.0a0"]
+dependencies = ["jupyter-collaboration>=3.1.0rc0"]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 license = { file = "LICENSE" }
 name = "jupyter_suggestions_rtc"
