@@ -9,6 +9,7 @@ import {
 import { StateEffect } from '@codemirror/state';
 import { ICellModel } from '@jupyterlab/cells';
 import * as Diff from 'diff';
+import { Debouncer } from '@lumino/polling';
 class HighlightDiff {
   constructor(
     view: EditorView,
@@ -17,10 +18,14 @@ class HighlightDiff {
     this._view = view;
     this.decorations = Decoration.none;
     this._originalCell = options.originalCell;
+    this._debouncedUpdate = new Debouncer(
+      this.originalCellUpdated.bind(this),
+      500
+    );
     if (options.liveUpdate) {
       this._originalCell.sharedModel.changed.connect(
-        this.originalCellUpdated,
-        this
+        this._debouncedUpdate.invoke,
+        this._debouncedUpdate
       );
     }
     this.updateDecorations();
@@ -74,12 +79,15 @@ class HighlightDiff {
   }
 
   destroy() {
-    this._originalCell.sharedModel.changed.disconnect(this.originalCellUpdated);
+    this._originalCell.sharedModel.changed.disconnect(
+      this._debouncedUpdate.invoke
+    );
   }
 
   decorations: DecorationSet;
   _originalCell: ICellModel;
   _view: EditorView;
+  _debouncedUpdate: Debouncer;
 }
 /**
  * Widget to show removed text

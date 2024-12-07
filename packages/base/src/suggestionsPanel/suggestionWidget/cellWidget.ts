@@ -1,5 +1,14 @@
 import { IYText } from '@jupyter/ydoc';
-import { Cell, CodeCell, ICellModel, ICodeCellModel } from '@jupyterlab/cells';
+import {
+  Cell,
+  CodeCell,
+  CodeCellModel,
+  ICellModel,
+  MarkdownCell,
+  MarkdownCellModel,
+  RawCell,
+  RawCellModel
+} from '@jupyterlab/cells';
 import {
   CodeMirrorEditorFactory,
   EditorExtensionRegistry,
@@ -29,19 +38,22 @@ export class CellWidget extends Panel {
     const { originalCellModel, cellModel } = suggestionData;
     this.addClass(suggestionCellStyle);
     this._cellId = cellModel.id as string | undefined;
-    this._cellWidget = this._createCell(
+    const cellWidget = this._createCell(
       originalCellModel,
       cellModel,
       liveUpdate
     );
-    const toolbar = new SuggestionToolbar({
-      toggleMinimized: this.toggleMinimized.bind(this),
-      deleteCallback: options.deleteCallback,
-      acceptCallback: options.acceptCallback,
-      state: this._state
-    });
-    this.addWidget(toolbar);
-    this.addWidget(this._cellWidget);
+    if (cellWidget) {
+      this._cellWidget = cellWidget;
+      const toolbar = new SuggestionToolbar({
+        toggleMinimized: this.toggleMinimized.bind(this),
+        deleteCallback: options.deleteCallback,
+        acceptCallback: options.acceptCallback,
+        state: this._state
+      });
+      this.addWidget(toolbar);
+      this.addWidget(this._cellWidget);
+    }
   }
 
   get cellId(): string | undefined {
@@ -124,28 +136,59 @@ export class CellWidget extends Panel {
   }
   private _createCell(
     originalCell: ICellModel,
-    cellModel: ICodeCellModel,
+    cellModel: ICellModel,
     liveUpdate: boolean
-  ) {
+  ): CodeCell | MarkdownCell | RawCell | undefined {
     const rendermime = new RenderMimeRegistry({ initialFactories });
     const factoryService = new CodeMirrorEditorFactory({
       extensions: this._cmExtensioRegistry(originalCell, liveUpdate),
       languages: this._cmLanguageRegistry()
     });
+    const cellType = originalCell.type;
 
-    const cellWidget = new CodeCell({
-      contentFactory: new Cell.ContentFactory({
-        editorFactory: factoryService.newInlineEditor.bind(factoryService)
-      }),
-      rendermime,
-      model: cellModel,
-      editorConfig: {
-        lineNumbers: false,
-        lineWrap: false,
-        matchBrackets: true,
-        tabFocusable: false
+    const contentFactory = new Cell.ContentFactory({
+      editorFactory: factoryService.newInlineEditor.bind(factoryService)
+    });
+
+    const editorConfig = {
+      lineNumbers: false,
+      lineWrap: false,
+      matchBrackets: true,
+      tabFocusable: false
+    };
+    let cellWidget: CodeCell | MarkdownCell | RawCell | undefined;
+    switch (cellType) {
+      case 'code': {
+        cellWidget = new CodeCell({
+          contentFactory,
+          rendermime,
+          model: cellModel as CodeCellModel,
+          editorConfig
+        }).initializeState();
+        cellWidget.outputArea.setHidden(true);
+        break;
       }
-    }).initializeState();
+      case 'markdown': {
+        cellWidget = new MarkdownCell({
+          contentFactory,
+          rendermime,
+          model: cellModel as MarkdownCellModel,
+          editorConfig
+        }).initializeState();
+        cellWidget.rendered = false;
+        break;
+      }
+      case 'raw': {
+        cellWidget = new RawCell({
+          contentFactory,
+          model: cellModel as RawCellModel,
+          editorConfig
+        }).initializeState();
+        break;
+      }
+      default:
+        break;
+    }
 
     return cellWidget;
   }
@@ -153,7 +196,7 @@ export class CellWidget extends Panel {
     values: { minimized: false }
   });
   private _cellId: string | undefined;
-  private _cellWidget: CodeCell | undefined;
+  private _cellWidget: CodeCell | MarkdownCell | RawCell | undefined;
 }
 
 export namespace CellWidget {

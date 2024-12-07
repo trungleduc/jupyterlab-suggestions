@@ -7,11 +7,18 @@ import {
   ISuggestionsManager
 } from '@jupyter/jupyter-suggestions-base';
 import { ISignal, Signal } from '@lumino/signaling';
-import { Cell, CodeCellModel, ICellModel } from '@jupyterlab/cells';
+import {
+  Cell,
+  CellModel,
+  CodeCellModel,
+  ICellModel,
+  MarkdownCellModel,
+  RawCellModel
+} from '@jupyterlab/cells';
 import { IForkManager, requestAPI } from '@jupyter/docprovider';
 import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
 import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
-import { YCodeCell, YNotebook } from '@jupyter/ydoc';
+import { YNotebook } from '@jupyter/ydoc';
 import { URLExt } from '@jupyterlab/coreutils';
 import { PromiseDelegate } from '@lumino/coreutils';
 
@@ -77,7 +84,8 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
         const cellModel = await this._cellModelFactory({
           rootDocId,
           forkRoomId,
-          cellId
+          cellId,
+          mimeType: cellMap[cellId].mimeType
         });
         const data: ISuggestionData = {
           cellModel,
@@ -140,7 +148,8 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
       const cellModel = await this._cellModelFactory({
         rootDocId: rootId,
         forkRoomId: suggestionId,
-        cellId
+        cellId,
+        mimeType: cell.model.mimeType
       });
       const suggestionContent: ISuggestionData = {
         originalCellModel: cell.model,
@@ -165,7 +174,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     cellId: string;
     suggestionId: string;
   }): Promise<boolean> {
-    return false;
+    return await this._deleteSuggesion({ ...options, merge: true });
   }
 
   async deleteSuggestion(options: {
@@ -173,12 +182,18 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     cellId: string;
     suggestionId: string;
   }): Promise<void> {
-    await this._forkManager.deleteFork({
-      forkId: options.suggestionId,
-      merge: false
-    });
-    const { notebook, cellId, suggestionId } = options;
+    await this._deleteSuggesion({ ...options, merge: false });
+  }
+
+  async _deleteSuggesion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+    merge: boolean;
+  }): Promise<boolean> {
+    const { notebook, cellId, suggestionId, merge } = options;
     const notebookPath = notebook.context.localPath;
+    await this._forkManager.deleteFork({ forkId: suggestionId, merge });
     if (this._suggestionsMap.has(notebookPath)) {
       const nbSuggestions = this._suggestionsMap.get(notebookPath);
       if (nbSuggestions && nbSuggestions.has(cellId)) {
@@ -190,8 +205,9 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
           operator: 'deleted'
         });
       }
+      return true;
     }
-    return;
+    return false;
   }
 
   async updateSuggestion(options: {
@@ -200,18 +216,20 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     suggestionId: string;
     newSource: string;
   }): Promise<void> {
+    // no-op
     return;
   }
   private async _cellModelFactory(options: {
     rootDocId: string;
     forkRoomId: string;
     cellId: string;
-  }): Promise<CodeCellModel> {
-    const { rootDocId, forkRoomId, cellId } = options;
+    mimeType: string;
+  }): Promise<CellModel> {
+    const { rootDocId, forkRoomId, cellId, mimeType } = options;
     const [format, type] = rootDocId.split(':');
     const sharedModelFactory =
       this._drive.sharedModelFactory.documentFactories.get(type);
-    const pd = new PromiseDelegate<CodeCellModel>();
+    const pd = new PromiseDelegate<CellModel>();
     if (sharedModelFactory) {
       const shared = sharedModelFactory({
         path: forkRoomId,
@@ -236,10 +254,36 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
             return it.getId() === cellId;
           });
           if (selectedCell[0]) {
-            const copiedCellModel = new CodeCellModel({
-              sharedModel: selectedCell[0] as YCodeCell
-            });
-            pd.resolve(copiedCellModel);
+            const currentCell = selectedCell[0];
+            let copiedCellModel: CellModel | undefined;
+            switch (currentCell.cell_type) {
+              case 'code': {
+                copiedCellModel = new CodeCellModel({
+                  sharedModel: currentCell
+                });
+                copiedCellModel.mimeType = mimeType;
+                break;
+              }
+              case 'markdown': {
+                copiedCellModel = new MarkdownCellModel({
+                  sharedModel: currentCell
+                });
+                break;
+              }
+              case 'raw': {
+                copiedCellModel = new RawCellModel({
+                  sharedModel: currentCell
+                });
+                break;
+              }
+              default:
+                break;
+            }
+            if (copiedCellModel) {
+              pd.resolve(copiedCellModel);
+            } else {
+              pd.reject('Invalid cell type');
+            }
           }
         }
       });

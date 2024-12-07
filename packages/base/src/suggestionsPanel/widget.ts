@@ -9,7 +9,7 @@ import {
 import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
 import { suggestionsWidgetAreaStyle } from './style';
 import { Dialog, showDialog } from '@jupyterlab/apputils';
-import { ISharedCodeCell } from '@jupyter/ydoc';
+import { ISharedCell } from '@jupyter/ydoc';
 import { Debouncer } from '@lumino/polling';
 
 export class SuggestionsWidget extends PanelWithToolbar {
@@ -173,7 +173,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
       }
     };
 
-    const debouncer = new Debouncer(async (cellModel: ISharedCodeCell) => {
+    const debouncer = new Debouncer(async (cellModel: ISharedCell) => {
       const newContent = cellModel.toJSON();
       await this._model.updateSuggestion({
         cellId,
