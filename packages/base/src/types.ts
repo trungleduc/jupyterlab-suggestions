@@ -1,16 +1,20 @@
 import { NotebookPanel } from '@jupyterlab/notebook';
 import { ISignal } from '@lumino/signaling';
 import { IDisposable } from '@lumino/disposable';
-import { Cell, ICellModel } from '@jupyterlab/cells';
+import { Cell, ICellModel, ICodeCellModel } from '@jupyterlab/cells';
 import { ICell } from '@jupyterlab/nbformat';
 export interface IDict<T = any> {
   [key: string]: T;
 }
 export interface ISuggestionData {
-  content: ICell;
-  newSource: string;
+  originalICell: ICell;
+  cellModel: ICodeCellModel;
 }
 
+export interface ISerializedSuggessionData {
+  originalICell: ICell;
+  newSource: string;
+}
 /**
  * Interface defining the structure and behavior of a suggestions model.
  *

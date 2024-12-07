@@ -56,7 +56,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     const rootDocId = notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
-    const [format, type, _] = rootDocId.split(':');
+    const [format, type] = rootDocId.split(':');
     const allForks = await this._forkManager.getAllForks(rootDocId);
     Object.keys(allForks).forEach(forkRoomId => {
       console.log('getting', format, type, forkRoomId);
@@ -80,7 +80,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
             awareness: shared.awareness
           }
         );
-        console.log('FOKRED', shared, _yWebsocketProvider);
+        console.log('FOKRED', typeof shared);
         _yWebsocketProvider.on('sync', (isSynced: boolean) => {
           console.log('isSynced', isSynced);
         });
@@ -105,7 +105,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     const rootId = options.notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
-    const [format, contentType, _] = rootId.split(':');
+    const [format, contentType] = rootId.split(':');
     const response = await this._forkManager.createFork({
       rootId,
       synchronize: false
@@ -117,7 +117,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
         format: format as any,
         contentType
       });
-      console.log('FOKRED', sharedModel);
+      console.log('FOKRED', typeof sharedModel);
       return response?.fork_roomid ?? '';
     } else {
       return '';

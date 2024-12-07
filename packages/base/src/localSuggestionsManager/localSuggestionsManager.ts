@@ -2,13 +2,20 @@ import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import {
   IAllSuggestions,
   IDict,
+  ISerializedSuggessionData,
   ISuggestionChange,
   ISuggestionData,
   ISuggestionsManager
 } from '../types';
 import { ISignal, Signal } from '@lumino/signaling';
-import { Cell, ICellModel } from '@jupyterlab/cells';
+import {
+  Cell,
+  CodeCellModel,
+  ICellModel,
+  ICodeCellModel
+} from '@jupyterlab/cells';
 import { UUID } from '@lumino/coreutils';
+import { ICell } from '@jupyterlab/nbformat';
 
 const METADATA_KEY = 'jupyter_suggestion';
 export class LocalSuggestionsManager implements ISuggestionsManager {
@@ -40,10 +47,21 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     if (this._suggestionsMap.has(path)) {
       return this._suggestionsMap.get(path);
     } else {
-      const savedSuggestions = notebook.context.model.getMetadata(METADATA_KEY);
+      const savedSuggestions: IDict<IDict<ISerializedSuggessionData>> =
+        notebook.context.model.getMetadata(METADATA_KEY);
       if (savedSuggestions) {
-        const currentSuggestion = new Map<string, IDict<ISuggestionData>>(
-          Object.entries(savedSuggestions)
+        const currentSuggestion = new Map<string, IDict<ISuggestionData>>();
+
+        Object.entries(savedSuggestions).forEach(
+          ([cellID, serializedCellSuggestions]) => {
+            const data: IDict<ISuggestionData> = {};
+            Object.entries(serializedCellSuggestions).forEach(
+              ([id, serializedData]) => {
+                data[id] = this._deserializedSuggestion(serializedData);
+              }
+            );
+            currentSuggestion.set(cellID, data);
+          }
         );
         this._suggestionsMap.set(path, currentSuggestion);
         return currentSuggestion;
@@ -80,17 +98,17 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     }
     const cellSuggesions = currentSuggestions.get(cellId)!;
     const suggestionId = UUID.uuid4();
-    const cellModel = cell.model.toJSON();
+    const icellModel = cell.model.toJSON();
     const suggestionContent: ISuggestionData = {
-      content: cellModel,
-      newSource: cellModel.source as string
+      originalICell: icellModel,
+      cellModel: this._cloneCellModel(icellModel)
     };
     cellSuggesions[suggestionId] = suggestionContent;
     await this._saveSuggestionToMetadata({
       notebook,
       cellId,
       suggestionId,
-      content: suggestionContent
+      suggestionContent
     });
     this._suggestionChanged.emit({
       notebookPath: path,
@@ -115,7 +133,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
       suggestionId
     });
     if (currentSuggestion && notebook.content.model?.cells) {
-      const { newSource } = currentSuggestion;
+      const newSource = currentSuggestion.cellModel.toJSON().source as string;
       for (const element of notebook.content.model.cells) {
         if (element.id === cellId) {
           element.sharedModel.setSource(newSource);
@@ -168,8 +186,6 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
         nbSuggestions.has(cellId) &&
         nbSuggestions.get(cellId)![suggestionId]
       ) {
-        const currentSuggestion = nbSuggestions.get(cellId)![suggestionId];
-        currentSuggestion.newSource = newSource;
         await this._updateSuggestionInMetadata({
           notebook,
           cellId,
@@ -189,17 +205,20 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     notebook: NotebookPanel;
     cellId: string;
     suggestionId: string;
-    content: IDict;
+    suggestionContent: ISuggestionData;
   }) {
-    const { notebook, cellId, suggestionId, content } = options;
-    const currentSuggestions: IDict =
+    const { notebook, cellId, suggestionId, suggestionContent } = options;
+    const currentSuggestions: IDict<IDict<ISerializedSuggessionData>> =
       notebook.context.model.getMetadata(METADATA_KEY) ?? {};
-
+    const serializedData: ISerializedSuggessionData = {
+      originalICell: suggestionContent.originalICell,
+      newSource: suggestionContent.cellModel.toJSON().source as string
+    };
     const newData = {
       ...currentSuggestions,
       [cellId]: {
         ...(currentSuggestions[cellId] ?? {}),
-        [suggestionId]: content
+        [suggestionId]: serializedData
       }
     };
     notebook.context.model.setMetadata(METADATA_KEY, newData);
@@ -220,6 +239,9 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     if (currentSuggestions[cellId][suggestionId]) {
       delete currentSuggestions[cellId][suggestionId];
     }
+    if (Object.keys(currentSuggestions[cellId]).length === 0) {
+      delete currentSuggestions[cellId];
+    }
     notebook.context.model.setMetadata(METADATA_KEY, currentSuggestions);
     await notebook.context.save();
   }
@@ -231,8 +253,9 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     newSource: string;
   }) {
     const { notebook, cellId, suggestionId, newSource } = options;
-    const currentSuggestions: IDict<IDict<ISuggestionData>> | undefined =
-      notebook.context.model.getMetadata(METADATA_KEY);
+    const currentSuggestions:
+      | IDict<IDict<{ content: ICell; newSource: string }>>
+      | undefined = notebook.context.model.getMetadata(METADATA_KEY);
     if (
       !currentSuggestions ||
       !currentSuggestions[cellId] ||
@@ -254,6 +277,40 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
         this._suggestionsMap.delete(localPath);
       }
     });
+  }
+
+  private _cloneCellModel(
+    cellModel: ICell,
+    newSource?: string
+  ): ICodeCellModel {
+    let mimeType = 'text/plain';
+    if (cellModel.cell_type === 'code') {
+      //TODO Detect correct kernel language
+      mimeType = 'text/x-ipython';
+    } else if (cellModel.cell_type === 'markdown') {
+      mimeType = 'text/x-ipythongfm';
+    }
+    const copiedCellModel = new CodeCellModel();
+    copiedCellModel.mimeType = mimeType;
+    copiedCellModel.sharedModel.setSource(
+      newSource ?? (cellModel.source as string)
+    );
+    return copiedCellModel;
+  }
+
+  private _deserializedSuggestion(
+    serializedData: ISerializedSuggessionData
+  ): ISuggestionData {
+    const newICell = JSON.parse(JSON.stringify(serializedData.originalICell));
+
+    const newCellModel = this._cloneCellModel(
+      newICell,
+      serializedData.newSource
+    );
+    return {
+      originalICell: newICell,
+      cellModel: newCellModel
+    };
   }
   private _suggestionChanged = new Signal<
     ISuggestionsManager,
