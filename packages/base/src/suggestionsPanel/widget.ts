@@ -147,7 +147,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
     suggestionData: ISuggestionData;
   }): { widget: CellWidget; index: number } {
     const { suggestionId, suggestionData } = options;
-    const cellId = suggestionData.originalICell.id as string | undefined;
+    const cellId = suggestionData.originalCellModel.id as string | undefined;
 
     const cellIdx = this._model.getCellIndex(cellId);
 
@@ -210,7 +210,8 @@ export class SuggestionsWidget extends PanelWithToolbar {
     const w = new CellWidget({
       suggestionData,
       deleteCallback,
-      acceptCallback
+      acceptCallback,
+      liveUpdate: this._model.sourceLiveUpdate
     });
 
     w.id = suggestionId;

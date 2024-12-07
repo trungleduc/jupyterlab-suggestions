@@ -24,6 +24,8 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     this._tracker.widgetAdded.connect(this._notebookAdded, this);
   }
 
+  sourceLiveUpdate = false;
+
   get isDisposed(): boolean {
     return this._isDisposed;
   }
@@ -51,13 +53,20 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
         notebook.context.model.getMetadata(METADATA_KEY);
       if (savedSuggestions) {
         const currentSuggestion = new Map<string, IDict<ISuggestionData>>();
-
+        const cellList = notebook.content.model?.cells ?? [];
+        const cellMap: IDict<ICellModel> = {};
+        for (const element of cellList) {
+          cellMap[element.id] = element;
+        }
         Object.entries(savedSuggestions).forEach(
           ([cellID, serializedCellSuggestions]) => {
             const data: IDict<ISuggestionData> = {};
             Object.entries(serializedCellSuggestions).forEach(
               ([id, serializedData]) => {
-                data[id] = this._deserializedSuggestion(serializedData);
+                data[id] = this._deserializedSuggestion(
+                  serializedData,
+                  cellMap
+                );
               }
             );
             currentSuggestion.set(cellID, data);
@@ -100,7 +109,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     const suggestionId = UUID.uuid4();
     const icellModel = cell.model.toJSON();
     const suggestionContent: ISuggestionData = {
-      originalICell: icellModel,
+      originalCellModel: cell.model,
       cellModel: this._cloneCellModel(icellModel)
     };
     cellSuggesions[suggestionId] = suggestionContent;
@@ -211,7 +220,7 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     const currentSuggestions: IDict<IDict<ISerializedSuggessionData>> =
       notebook.context.model.getMetadata(METADATA_KEY) ?? {};
     const serializedData: ISerializedSuggessionData = {
-      originalICell: suggestionContent.originalICell,
+      originalCellId: suggestionContent.originalCellModel.id,
       newSource: suggestionContent.cellModel.toJSON().source as string
     };
     const newData = {
@@ -299,16 +308,16 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
   }
 
   private _deserializedSuggestion(
-    serializedData: ISerializedSuggessionData
+    serializedData: ISerializedSuggessionData,
+    cellMap: IDict<ICellModel>
   ): ISuggestionData {
-    const newICell = JSON.parse(JSON.stringify(serializedData.originalICell));
-
+    const originalCellModel = cellMap[serializedData.originalCellId];
     const newCellModel = this._cloneCellModel(
-      newICell,
+      originalCellModel.toJSON(),
       serializedData.newSource
     );
     return {
-      originalICell: newICell,
+      originalCellModel,
       cellModel: newCellModel
     };
   }

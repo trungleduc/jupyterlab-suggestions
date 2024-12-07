@@ -6,12 +6,23 @@ import {
   WidgetType,
   EditorView
 } from '@codemirror/view';
+import { StateEffect } from '@codemirror/state';
+import { ICellModel } from '@jupyterlab/cells';
 import * as Diff from 'diff';
 class HighlightDiff {
-  constructor(view: EditorView, options: { originalSource: string }) {
+  constructor(
+    view: EditorView,
+    options: { originalCell: ICellModel; liveUpdate: boolean }
+  ) {
     this._view = view;
     this.decorations = Decoration.none;
-    this._originalText = options.originalSource;
+    this._originalCell = options.originalCell;
+    if (options.liveUpdate) {
+      this._originalCell.sharedModel.changed.connect(
+        this.originalCellUpdated,
+        this
+      );
+    }
     this.updateDecorations();
   }
 
@@ -20,11 +31,17 @@ class HighlightDiff {
       this.updateDecorations();
     }
   }
-
+  originalCellUpdated() {
+    this.updateDecorations();
+    this._view.dispatch({
+      effects: StateEffect.appendConfig.of([])
+    });
+  }
   updateDecorations() {
     const currentText = this._view.state.doc.toString();
     // Compare words with spaces
-    const diffs = Diff.diffWordsWithSpace(this._originalText, currentText);
+    const originalText = this._originalCell.sharedModel.getSource();
+    const diffs = Diff.diffWordsWithSpace(originalText, currentText);
 
     const decorations = [];
     let pos = 0;
@@ -57,11 +74,11 @@ class HighlightDiff {
   }
 
   destroy() {
-    // TODO
+    this._originalCell.sharedModel.changed.disconnect(this.originalCellUpdated);
   }
 
   decorations: DecorationSet;
-  _originalText: string;
+  _originalCell: ICellModel;
   _view: EditorView;
 }
 /**
@@ -98,7 +115,10 @@ class RemovedTextWidget extends WidgetType {
   private _text: string;
 }
 
-export function diffTextExtensionFactory(options: { originalSource: string }) {
+export function diffTextExtensionFactory(options: {
+  originalCell: ICellModel;
+  liveUpdate: boolean;
+}) {
   return ViewPlugin.fromClass(
     class extends HighlightDiff {
       constructor(view: any) {

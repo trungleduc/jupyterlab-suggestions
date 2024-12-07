@@ -1,5 +1,5 @@
 import { IYText } from '@jupyter/ydoc';
-import { Cell, CodeCell, ICodeCellModel } from '@jupyterlab/cells';
+import { Cell, CodeCell, ICellModel, ICodeCellModel } from '@jupyterlab/cells';
 import {
   CodeMirrorEditorFactory,
   EditorExtensionRegistry,
@@ -7,7 +7,7 @@ import {
   EditorThemeRegistry,
   ybinding
 } from '@jupyterlab/codemirror';
-import { ICell } from '@jupyterlab/nbformat';
+
 import { ObservableMap } from '@jupyterlab/observables';
 import {
   RenderMimeRegistry,
@@ -25,11 +25,15 @@ import { SuggestionToolbar } from './suggestionToolbar';
 export class CellWidget extends Panel {
   constructor(options: CellWidget.IOptions) {
     super(options);
-    const { suggestionData } = options;
-    const { originalICell, cellModel } = suggestionData;
+    const { suggestionData, liveUpdate } = options;
+    const { originalCellModel, cellModel } = suggestionData;
     this.addClass(suggestionCellStyle);
     this._cellId = cellModel.id as string | undefined;
-    this._cellWidget = this._createCell(originalICell, cellModel);
+    this._cellWidget = this._createCell(
+      originalCellModel,
+      cellModel,
+      liveUpdate
+    );
     const toolbar = new SuggestionToolbar({
       toggleMinimized: this.toggleMinimized.bind(this),
       deleteCallback: options.deleteCallback,
@@ -59,7 +63,10 @@ export class CellWidget extends Panel {
     }
   }
 
-  private _cmExtensioRegistry(originalSource: string): EditorExtensionRegistry {
+  private _cmExtensioRegistry(
+    originalCell: ICellModel,
+    liveUpdate: boolean
+  ): EditorExtensionRegistry {
     const themes = new EditorThemeRegistry();
     EditorThemeRegistry.getDefaultThemes().forEach(theme => {
       themes.addTheme(theme);
@@ -86,7 +93,7 @@ export class CellWidget extends Panel {
       name: 'suggestion-view',
       factory: options => {
         return EditorExtensionRegistry.createImmutableExtension([
-          diffTextExtensionFactory({ originalSource })
+          diffTextExtensionFactory({ originalCell, liveUpdate })
         ]);
       }
     });
@@ -115,11 +122,14 @@ export class CellWidget extends Panel {
     });
     return languages;
   }
-  private _createCell(originalICell: ICell, cellModel: ICodeCellModel) {
+  private _createCell(
+    originalCell: ICellModel,
+    cellModel: ICodeCellModel,
+    liveUpdate: boolean
+  ) {
     const rendermime = new RenderMimeRegistry({ initialFactories });
-
     const factoryService = new CodeMirrorEditorFactory({
-      extensions: this._cmExtensioRegistry(originalICell.source as string),
+      extensions: this._cmExtensioRegistry(originalCell, liveUpdate),
       languages: this._cmLanguageRegistry()
     });
 
@@ -151,5 +161,6 @@ export namespace CellWidget {
     suggestionData: ISuggestionData;
     deleteCallback: () => Promise<void>;
     acceptCallback: () => Promise<void>;
+    liveUpdate: boolean;
   }
 }

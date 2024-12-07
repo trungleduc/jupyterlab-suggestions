@@ -29,6 +29,8 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     );
   }
 
+  sourceLiveUpdate = true;
+
   get isDisposed(): boolean {
     return this._isDisposed;
   }
@@ -79,7 +81,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
         });
         const data: ISuggestionData = {
           cellModel,
-          originalICell: cellMap[cellId]?.toJSON() ?? {}
+          originalCellModel: cellMap[cellId]
         };
         if (currentSuggestion.has(cellId)) {
           const currentData = currentSuggestion.get(cellId)!;
@@ -140,9 +142,8 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
         forkRoomId: suggestionId,
         cellId
       });
-      const iCellModel = cell.model.toJSON();
       const suggestionContent: ISuggestionData = {
-        originalICell: iCellModel,
+        originalCellModel: cell.model,
         cellModel
       };
       cellSuggesions[suggestionId] = suggestionContent;
