@@ -34,7 +34,6 @@ export class SuggestionsModel implements ISuggestionsModel {
     return this._isDisposed;
   }
   get allSuggestions(): IAllSuggestions | undefined {
-    console.log('aaaa', this._allSuggestions);
     return this._allSuggestions;
   }
   dispose(): void {
