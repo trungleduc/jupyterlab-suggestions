@@ -134,7 +134,7 @@ export class LocalSuggestionsManager
       suggestionId
     });
     if (currentSuggestion && notebook.content.model?.cells) {
-      const newSource = currentSuggestion.cellModel.toJSON().source as string;
+      const newSource = currentSuggestion.cellModel.sharedModel.getSource();
       for (const element of notebook.content.model.cells) {
         if (element.id === cellId) {
           element.sharedModel.setSource(newSource);
@@ -213,7 +213,7 @@ export class LocalSuggestionsManager
       notebook.context.model.getMetadata(METADATA_KEY) ?? {};
     const serializedData: ISerializedSuggessionData = {
       originalCellId: suggestionContent.originalCellModel.id,
-      newSource: suggestionContent.cellModel.toJSON().source as string
+      newSource: suggestionContent.cellModel.sharedModel.getSource()
     };
     const newData = {
       ...currentSuggestions,

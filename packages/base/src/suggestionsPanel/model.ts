@@ -17,7 +17,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     return Boolean(this._suggestionsManager?.sourceLiveUpdate);
   }
   get filePath(): string {
-    return this._filePath ?? '-';
+    return this._filePath ?? '';
   }
   get notebookSwitched(): ISignal<ISuggestionsModel, void> {
     return this._notebookSwitched;

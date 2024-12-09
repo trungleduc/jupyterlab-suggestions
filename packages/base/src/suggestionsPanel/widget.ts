@@ -124,8 +124,9 @@ export class SuggestionsWidget extends PanelWithToolbar {
     } else {
       this.title.label = 'All Suggestions';
     }
-    const allWidgets = this._suggestionsArea.widgets;
+    const allWidgets = [...this._suggestionsArea.widgets];
     for (const element of allWidgets) {
+      this._suggestionsArea.layout?.removeWidget(element);
       element.dispose();
       element.parent = null;
     }

@@ -46,9 +46,9 @@ export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
         suggestionsManager
       });
       tracker.currentChanged.connect(async (_, changed) => {
-        if (changed) {
-          await changed.context.ready;
-          model.switchNotebook(changed);
+        if (tracker.currentWidget) {
+          await tracker.currentWidget.context.ready;
+          model.switchNotebook(tracker.currentWidget);
         } else {
           model.switchNotebook(null);
         }
