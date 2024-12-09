@@ -1,8 +1,12 @@
 import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
-import { IForkManager, requestAPI } from '@jupyter/docprovider';
+import {
+  IForkChangedEvent,
+  IForkManager,
+  requestAPI
+} from '@jupyter/docprovider';
 import {
   BaseSuggestionsManager,
-  IAllSuggestions,
+  IAllSuggestionData,
   IDict,
   ISuggestionData,
   ISuggestionsManager
@@ -37,15 +41,25 @@ export class RtcSuggestionsManager
       this._drive.serverSettings.wsUrl,
       DOCUMENT_PROVIDER_URL
     );
+    this._forkManager.forkAdded.connect(this._handleForkAdded, this);
+    this._forkManager.forkDeleted.connect(this._handleForkDeleted, this);
   }
 
   sourceLiveUpdate = true;
 
   name = 'RTC Suggestion Manager';
 
+  dispose(): void {
+    if (this._isDisposed) {
+      return;
+    }
+    this._forkManager.forkAdded.disconnect(this._handleForkAdded);
+    this._forkManager.forkDeleted.disconnect(this._handleForkDeleted);
+    super.dispose();
+  }
   async getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestions | undefined> {
+  ): Promise<IAllSuggestionData | undefined> {
     if (!this._serverSession) {
       const res = await requestAPI<{ sessionId: string }>(
         URLExt.join('api/collaboration/session/'),
@@ -70,7 +84,8 @@ export class RtcSuggestionsManager
         cellMap[element.id] = element;
       }
       for (const [forkRoomId, forkData] of Object.entries(allForks)) {
-        const cellId = forkData.description ?? '';
+        const forkMeta = JSON.parse(forkData.description ?? '{}');
+        const cellId = forkMeta.cellId;
         const cellModel = await this._cellModelFactory({
           rootDocId,
           forkRoomId,
@@ -79,7 +94,7 @@ export class RtcSuggestionsManager
         });
         const data: ISuggestionData = {
           cellModel,
-          originalCellModel: cellMap[cellId]
+          originalCellId: cellId
         };
         if (currentSuggestion.has(cellId)) {
           const currentData = currentSuggestion.get(cellId)!;
@@ -115,48 +130,22 @@ export class RtcSuggestionsManager
   }): Promise<string> {
     const { notebook, cell } = options;
     const path = notebook.context.localPath;
-    if (!this._suggestionsMap.has(path)) {
-      this._suggestionsMap.set(path, new Map());
-    }
-    const currentSuggestions = this._suggestionsMap.get(path)!;
-    const cellId = cell.model.id;
 
-    if (!currentSuggestions.has(cellId)) {
-      currentSuggestions.set(cellId, {});
-    }
-    const cellSuggesions = currentSuggestions.get(cellId)!;
+    const cellId = cell.model.id;
     const rootId = notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
     const response = await this._forkManager.createFork({
       rootId,
       synchronize: true,
-      description: cellId
-    });
-    if (response?.fork_roomid) {
-      const suggestionId = response.fork_roomid;
-      const cellModel = await this._cellModelFactory({
-        rootDocId: rootId,
-        forkRoomId: suggestionId,
+      //TODO: Update when the fork manager supports metadata
+      description: JSON.stringify({
         cellId,
+        path,
         mimeType: cell.model.mimeType
-      });
-      const suggestionContent: ISuggestionData = {
-        originalCellModel: cell.model,
-        cellModel
-      };
-      cellSuggesions[suggestionId] = suggestionContent;
-
-      this._suggestionChanged.emit({
-        notebookPath: path,
-        cellId,
-        suggestionId,
-        operator: 'added'
-      });
-      return suggestionId;
-    } else {
-      return '';
-    }
+      })
+    });
+    return response?.fork_roomid ?? '';
   }
 
   async acceptSuggestion(options: {
@@ -164,7 +153,14 @@ export class RtcSuggestionsManager
     cellId: string;
     suggestionId: string;
   }): Promise<boolean> {
-    return await this._deleteSuggesion({ ...options, merge: true });
+    const { suggestionId } = options;
+    try {
+      await this._forkManager.deleteFork({ forkId: suggestionId, merge: true });
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   }
 
   async deleteSuggestion(options: {
@@ -172,7 +168,8 @@ export class RtcSuggestionsManager
     cellId: string;
     suggestionId: string;
   }): Promise<void> {
-    await this._deleteSuggesion({ ...options, merge: false });
+    const { suggestionId } = options;
+    await this._forkManager.deleteFork({ forkId: suggestionId, merge: false });
   }
 
   async updateSuggestion(options: {
@@ -185,31 +182,71 @@ export class RtcSuggestionsManager
     return;
   }
 
-  async _deleteSuggesion(options: {
-    notebook: NotebookPanel;
-    cellId: string;
-    suggestionId: string;
-    merge: boolean;
-  }): Promise<boolean> {
-    const { notebook, cellId, suggestionId, merge } = options;
-    const notebookPath = notebook.context.localPath;
-    await this._forkManager.deleteFork({ forkId: suggestionId, merge });
-    if (this._suggestionsMap.has(notebookPath)) {
-      const nbSuggestions = this._suggestionsMap.get(notebookPath);
+  private _handleForkDeleted(
+    manager: IForkManager,
+    changed: IForkChangedEvent
+  ) {
+    const forkInfo = changed.fork_info;
+    const forkMeta = JSON.parse(forkInfo.description ?? '{}');
+    const { cellId, path } = forkMeta;
+    const suggestionId = changed.fork_roomid;
+    if (this._suggestionsMap.has(path)) {
+      const nbSuggestions = this._suggestionsMap.get(path);
       if (nbSuggestions && nbSuggestions.has(cellId)) {
         delete nbSuggestions.get(cellId)![suggestionId];
         this._suggestionChanged.emit({
-          notebookPath,
+          notebookPath: path,
           cellId,
           suggestionId,
           operator: 'deleted'
         });
       }
-      return true;
     }
-    return false;
   }
 
+  private async _handleForkAdded(
+    manager: IForkManager,
+    changed: IForkChangedEvent
+  ) {
+    const forkInfo = changed.fork_info;
+    const forkMeta = JSON.parse(forkInfo.description ?? '{}');
+    const { cellId, path, mimeType } = forkMeta;
+    const rootId = forkInfo.root_roomid;
+    const suggestionId = changed.fork_roomid;
+    if (!path || !cellId) {
+      return;
+    }
+    if (!this._suggestionsMap.has(path)) {
+      this._suggestionsMap.set(path, new Map());
+    }
+    const currentSuggestions = this._suggestionsMap.get(path)!;
+
+    if (!currentSuggestions.has(cellId)) {
+      currentSuggestions.set(cellId, {});
+    }
+    const cellSuggesions = currentSuggestions.get(cellId)!;
+    if (cellSuggesions[suggestionId]) {
+      return;
+    }
+
+    const cellModel = await this._cellModelFactory({
+      rootDocId: rootId,
+      forkRoomId: suggestionId,
+      cellId,
+      mimeType
+    });
+    const suggestionContent: ISuggestionData = {
+      originalCellId: cellId,
+      cellModel
+    };
+    cellSuggesions[suggestionId] = suggestionContent;
+    this._suggestionChanged.emit({
+      notebookPath: path,
+      cellId,
+      suggestionId,
+      operator: 'added'
+    });
+  }
   private async _cellModelFactory(options: {
     rootDocId: string;
     forkRoomId: string;
