@@ -3,7 +3,7 @@ import { Panel } from '@lumino/widgets';
 
 import {
   ISuggestionChange,
-  ISuggestionData,
+  ISuggestionViewData,
   ISuggestionsModel
 } from '../types';
 import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
@@ -145,7 +145,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
 
   private _widgetFactory(options: {
     suggestionId: string;
-    suggestionData: ISuggestionData;
+    suggestionData: ISuggestionViewData;
   }): { widget: CellWidget; index: number } {
     const { suggestionId, suggestionData } = options;
     const cellId = suggestionData.originalCellModel.id as string | undefined;

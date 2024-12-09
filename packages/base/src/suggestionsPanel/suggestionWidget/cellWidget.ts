@@ -26,7 +26,7 @@ import { JSONValue } from '@lumino/coreutils';
 import { Signal } from '@lumino/signaling';
 import { Panel } from '@lumino/widgets';
 
-import { ISuggestionData } from '../../types';
+import { ISuggestionViewData } from '../../types';
 import { diffTextExtensionFactory } from '../cmExtension';
 import { suggestionCellStyle } from './style';
 import { SuggestionToolbar } from './suggestionToolbar';
@@ -201,7 +201,7 @@ export class CellWidget extends Panel {
 
 export namespace CellWidget {
   export interface IOptions extends Panel.IOptions {
-    suggestionData: ISuggestionData;
+    suggestionData: ISuggestionViewData;
     deleteCallback: () => Promise<void>;
     acceptCallback: () => Promise<void>;
     liveUpdate: boolean;

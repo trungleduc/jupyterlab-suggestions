@@ -7,9 +7,24 @@ export interface IDict<T = any> {
 }
 
 /**
- * Interface defining the structure of a suggestion.
+ * Interface defining the structure of a suggestion returned from a manager.
  **/
 export interface ISuggestionData {
+  /**
+   * The current id of the cell being suggested.
+   */
+  originalCellId: string;
+
+  /**
+   * The model of the suggestion cell.
+   */
+  cellModel: ICellModel;
+}
+
+/**
+ * Interface defining the structure of a suggestion used by the view widget.
+ **/
+export interface ISuggestionViewData {
   /**
    * The current model of the cell being suggested.
    */
@@ -21,10 +36,6 @@ export interface ISuggestionData {
   cellModel: ICellModel;
 }
 
-export interface ISerializedSuggessionData {
-  originalCellId: string;
-  newSource: string;
-}
 /**
  * Interface defining the structure and behavior of a suggestions model.
  *
@@ -52,7 +63,7 @@ export interface ISuggestionsModel extends IDisposable {
   /**
    * All suggestions associated with the current notebook.
    */
-  allSuggestions: IAllSuggestions | undefined;
+  allSuggestions: IAllSuggestionViewData | undefined;
 
   /**
    * Signal emitted when the notebook is switched.
@@ -155,7 +166,7 @@ export interface ISuggestionsModel extends IDisposable {
   getSuggestion(options: {
     cellId: string;
     suggestionId: string;
-  }): Promise<ISuggestionData | undefined>;
+  }): Promise<ISuggestionViewData | undefined>;
 
   /**
    * Retrieves the index of a cell by its ID.
@@ -172,7 +183,8 @@ export interface ISuggestionChange {
   operator: 'added' | 'deleted' | 'modified';
   suggestionId: string;
 }
-export type IAllSuggestions = Map<string, IDict<ISuggestionData>>;
+export type IAllSuggestionViewData = Map<string, IDict<ISuggestionViewData>>;
+export type IAllSuggestionData = Map<string, IDict<ISuggestionData>>;
 
 /**
  * Interface defining a suggestions manager.
@@ -206,7 +218,7 @@ export interface ISuggestionsManager extends IDisposable {
    */
   getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestions | undefined>;
+  ): Promise<IAllSuggestionData | undefined>;
 
   /**
    * Adds a new suggestion to a specified cell in the notebook.

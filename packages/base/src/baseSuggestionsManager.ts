@@ -3,7 +3,7 @@ import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { ISignal, Signal } from '@lumino/signaling';
 
 import {
-  IAllSuggestions,
+  IAllSuggestionData,
   ISuggestionChange,
   ISuggestionData,
   ISuggestionsManager
@@ -36,7 +36,7 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
 
   abstract getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestions | undefined>;
+  ): Promise<IAllSuggestionData | undefined>;
 
   async getSuggestion(options: {
     notebookPath: string;
@@ -75,7 +75,7 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
     newSource: string;
   }): Promise<void>;
 
-  protected _suggestionsMap = new Map<string, IAllSuggestions>();
+  protected _suggestionsMap = new Map<string, IAllSuggestionData>();
 
   protected _notebookAdded(tracker: INotebookTracker, panel: NotebookPanel) {
     panel.disposed.connect(p => {

@@ -12,12 +12,16 @@ import { UUID } from '@lumino/coreutils';
 
 import { BaseSuggestionsManager } from '../baseSuggestionsManager';
 import {
-  IAllSuggestions,
+  IAllSuggestionData,
   IDict,
-  ISerializedSuggessionData,
   ISuggestionData,
   ISuggestionsManager
 } from '../types';
+
+export interface ISerializedSuggessionData {
+  originalCellId: string;
+  newSource: string;
+}
 
 const METADATA_KEY = 'jupyter_suggestion';
 export class LocalSuggestionsManager
@@ -36,7 +40,7 @@ export class LocalSuggestionsManager
 
   async getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestions | undefined> {
+  ): Promise<IAllSuggestionData | undefined> {
     const path = notebook.context.localPath;
     if (this._suggestionsMap.has(path)) {
       return this._suggestionsMap.get(path);
@@ -99,9 +103,8 @@ export class LocalSuggestionsManager
     }
     const cellSuggesions = currentSuggestions.get(cellId)!;
     const suggestionId = UUID.uuid4();
-    // const icellModel = cell.model.toJSON();
     const suggestionContent: ISuggestionData = {
-      originalCellModel: cell.model,
+      originalCellId: cellId,
       cellModel: this._cloneCellModel(cell.model)
     };
     cellSuggesions[suggestionId] = suggestionContent;
@@ -212,7 +215,7 @@ export class LocalSuggestionsManager
     const currentSuggestions: IDict<IDict<ISerializedSuggessionData>> =
       notebook.context.model.getMetadata(METADATA_KEY) ?? {};
     const serializedData: ISerializedSuggessionData = {
-      originalCellId: suggestionContent.originalCellModel.id,
+      originalCellId: suggestionContent.originalCellId,
       newSource: suggestionContent.cellModel.sharedModel.getSource()
     };
     const newData = {
@@ -308,13 +311,11 @@ export class LocalSuggestionsManager
     serializedData: ISerializedSuggessionData,
     cellMap: IDict<ICellModel>
   ): ISuggestionData {
+    const { originalCellId, newSource } = serializedData;
     const originalCellModel = cellMap[serializedData.originalCellId];
-    const newCellModel = this._cloneCellModel(
-      originalCellModel,
-      serializedData.newSource
-    );
+    const newCellModel = this._cloneCellModel(originalCellModel, newSource);
     return {
-      originalCellModel,
+      originalCellId,
       cellModel: newCellModel
     };
   }
