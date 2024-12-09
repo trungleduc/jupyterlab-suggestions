@@ -51,6 +51,9 @@ export class SuggestionsModel implements ISuggestionsModel {
     Signal.clearData(this);
   }
 
+  getSuggestionManagerName(): string {
+    return this._suggestionsManager?.name ?? '';
+  }
   async addSuggestion(): Promise<void> {
     const activeCell = this._notebookPanel?.content.activeCell;
     if (activeCell && this._notebookPanel && this._suggestionsManager) {
@@ -160,6 +163,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._allSuggestions = await this._suggestionsManager?.getAllSuggestions(
         this._notebookPanel
       );
+      this._notebookSwitched.emit();
     }
   }
   private _connectPanelSignal() {

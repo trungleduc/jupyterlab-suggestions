@@ -79,6 +79,11 @@ export interface ISuggestionsModel extends IDisposable {
   >;
 
   /**
+   * Name of the current suggestion manager.
+   */
+  getSuggestionManagerName(): string;
+
+  /**
    * Switches the active notebook to the specified panel or null.
    *
    * @param panel - The new notebook panel to activate, or null
@@ -178,6 +183,11 @@ export type IAllSuggestions = Map<string, IDict<ISuggestionData>>;
  * is changed.
  */
 export interface ISuggestionsManager extends IDisposable {
+  /**
+   * Suggestion manager name
+   */
+  name: string;
+
   /**
    * Does this manager support live update of the source cell?
    */

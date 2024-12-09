@@ -1,46 +1,38 @@
-import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
+import {
+  Cell,
+  CellModel,
+  CodeCellModel,
+  ICellModel,
+  MarkdownCellModel,
+  RawCellModel
+} from '@jupyterlab/cells';
+import { ICell } from '@jupyterlab/nbformat';
+import { NotebookPanel } from '@jupyterlab/notebook';
+import { UUID } from '@lumino/coreutils';
+
+import { BaseSuggestionsManager } from '../baseSuggestionsManager';
 import {
   IAllSuggestions,
   IDict,
   ISerializedSuggessionData,
-  ISuggestionChange,
   ISuggestionData,
   ISuggestionsManager
 } from '../types';
-import { ISignal, Signal } from '@lumino/signaling';
-import {
-  Cell,
-  CodeCellModel,
-  ICellModel,
-  ICodeCellModel
-} from '@jupyterlab/cells';
-import { UUID } from '@lumino/coreutils';
-import { ICell } from '@jupyterlab/nbformat';
 
 const METADATA_KEY = 'jupyter_suggestion';
-export class LocalSuggestionsManager implements ISuggestionsManager {
-  constructor(options: LocalSuggestionsManager.IOptions) {
+export class LocalSuggestionsManager
+  extends BaseSuggestionsManager
+  implements ISuggestionsManager
+{
+  constructor(options: BaseSuggestionsManager.IOptions) {
+    super(options);
     this._tracker = options.tracker;
     this._tracker.widgetAdded.connect(this._notebookAdded, this);
   }
 
   sourceLiveUpdate = false;
 
-  get isDisposed(): boolean {
-    return this._isDisposed;
-  }
-
-  get suggestionChanged(): ISignal<ISuggestionsManager, ISuggestionChange> {
-    return this._suggestionChanged;
-  }
-  dispose(): void {
-    if (this._isDisposed) {
-      return;
-    }
-    this._tracker.widgetAdded.disconnect(this._notebookAdded);
-    Signal.clearData(this);
-    this._isDisposed = true;
-  }
+  name = 'Local Suggestion Manager';
 
   async getAllSuggestions(
     notebook: NotebookPanel
@@ -107,10 +99,10 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     }
     const cellSuggesions = currentSuggestions.get(cellId)!;
     const suggestionId = UUID.uuid4();
-    const icellModel = cell.model.toJSON();
+    // const icellModel = cell.model.toJSON();
     const suggestionContent: ISuggestionData = {
       originalCellModel: cell.model,
-      cellModel: this._cloneCellModel(icellModel)
+      cellModel: this._cloneCellModel(cell.model)
     };
     cellSuggesions[suggestionId] = suggestionContent;
     await this._saveSuggestionToMetadata({
@@ -279,30 +271,35 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
     await notebook.context.save();
   }
 
-  private _notebookAdded(tracker: INotebookTracker, panel: NotebookPanel) {
-    panel.disposed.connect(p => {
-      const localPath = p.context.localPath;
-      if (this._suggestionsMap.has(localPath)) {
-        this._suggestionsMap.delete(localPath);
-      }
-    });
-  }
-
   private _cloneCellModel(
-    cellModel: ICell,
+    cellModel: ICellModel,
     newSource?: string
-  ): ICodeCellModel {
-    let mimeType = 'text/plain';
-    if (cellModel.cell_type === 'code') {
-      //TODO Detect correct kernel language
-      mimeType = 'text/x-ipython';
-    } else if (cellModel.cell_type === 'markdown') {
-      mimeType = 'text/x-ipythongfm';
+  ): ICellModel {
+    let copiedCellModel: CellModel | undefined;
+    const mimeType = cellModel.mimeType;
+    switch (cellModel.type) {
+      case 'code': {
+        copiedCellModel = new CodeCellModel();
+        break;
+      }
+      case 'markdown': {
+        copiedCellModel = new MarkdownCellModel();
+        break;
+      }
+      case 'raw': {
+        copiedCellModel = new RawCellModel();
+        break;
+      }
+      default:
+        break;
     }
-    const copiedCellModel = new CodeCellModel();
+
+    if (!copiedCellModel) {
+      throw new Error('Invalid cell type');
+    }
     copiedCellModel.mimeType = mimeType;
     copiedCellModel.sharedModel.setSource(
-      newSource ?? (cellModel.source as string)
+      newSource ?? cellModel.sharedModel.getSource()
     );
     return copiedCellModel;
   }
@@ -313,25 +310,12 @@ export class LocalSuggestionsManager implements ISuggestionsManager {
   ): ISuggestionData {
     const originalCellModel = cellMap[serializedData.originalCellId];
     const newCellModel = this._cloneCellModel(
-      originalCellModel.toJSON(),
+      originalCellModel,
       serializedData.newSource
     );
     return {
       originalCellModel,
       cellModel: newCellModel
     };
-  }
-  private _suggestionChanged = new Signal<
-    ISuggestionsManager,
-    ISuggestionChange
-  >(this);
-  private _isDisposed = false;
-  private _tracker: INotebookTracker;
-  private _suggestionsMap = new Map<string, IAllSuggestions>();
-}
-
-export namespace LocalSuggestionsManager {
-  export interface IOptions {
-    tracker: INotebookTracker;
   }
 }

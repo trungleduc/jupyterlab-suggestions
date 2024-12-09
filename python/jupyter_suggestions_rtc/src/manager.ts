@@ -1,12 +1,13 @@
-import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
+import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
+import { IForkManager, requestAPI } from '@jupyter/docprovider';
 import {
+  BaseSuggestionsManager,
   IAllSuggestions,
   IDict,
-  ISuggestionChange,
   ISuggestionData,
   ISuggestionsManager
 } from '@jupyter/jupyter-suggestions-base';
-import { ISignal, Signal } from '@lumino/signaling';
+import { YNotebook } from '@jupyter/ydoc';
 import {
   Cell,
   CellModel,
@@ -15,17 +16,19 @@ import {
   MarkdownCellModel,
   RawCellModel
 } from '@jupyterlab/cells';
-import { IForkManager, requestAPI } from '@jupyter/docprovider';
-import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
-import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
-import { YNotebook } from '@jupyter/ydoc';
 import { URLExt } from '@jupyterlab/coreutils';
+import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { PromiseDelegate } from '@lumino/coreutils';
+import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
 
 const DOCUMENT_PROVIDER_URL = 'api/collaboration/room';
 
-export class RtcSuggestionsManager implements ISuggestionsManager {
+export class RtcSuggestionsManager
+  extends BaseSuggestionsManager
+  implements ISuggestionsManager
+{
   constructor(options: RtcSuggestionsManager.IOptions) {
+    super(options);
     this._tracker = options.tracker;
     this._tracker;
     this._forkManager = options.forkManager;
@@ -38,20 +41,7 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
 
   sourceLiveUpdate = true;
 
-  get isDisposed(): boolean {
-    return this._isDisposed;
-  }
-
-  get suggestionChanged(): ISignal<ISuggestionsManager, ISuggestionChange> {
-    return this._suggestionChanged;
-  }
-  dispose(): void {
-    if (this._isDisposed) {
-      return;
-    }
-    Signal.clearData(this);
-    this._isDisposed = true;
-  }
+  name = 'RTC Suggestion Manager';
 
   async getAllSuggestions(
     notebook: NotebookPanel
@@ -185,6 +175,16 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     await this._deleteSuggesion({ ...options, merge: false });
   }
 
+  async updateSuggestion(options: {
+    notebook: NotebookPanel;
+    cellId: string;
+    suggestionId: string;
+    newSource: string;
+  }): Promise<void> {
+    // no-op
+    return;
+  }
+
   async _deleteSuggesion(options: {
     notebook: NotebookPanel;
     cellId: string;
@@ -210,15 +210,6 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     return false;
   }
 
-  async updateSuggestion(options: {
-    notebook: NotebookPanel;
-    cellId: string;
-    suggestionId: string;
-    newSource: string;
-  }): Promise<void> {
-    // no-op
-    return;
-  }
   private async _cellModelFactory(options: {
     rootDocId: string;
     forkRoomId: string;
@@ -292,17 +283,11 @@ export class RtcSuggestionsManager implements ISuggestionsManager {
     }
     return pd.promise;
   }
-  private _suggestionChanged = new Signal<
-    ISuggestionsManager,
-    ISuggestionChange
-  >(this);
-  private _isDisposed = false;
-  private _tracker: INotebookTracker;
+
   private _forkManager: IForkManager;
   private _drive: ICollaborativeDrive;
   private _serverSession?: string;
   private _serverUrl: string;
-  private _suggestionsMap = new Map<string, IAllSuggestions>();
 }
 
 export namespace RtcSuggestionsManager {
