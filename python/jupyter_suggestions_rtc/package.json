@@ -1,5 +1,5 @@
 {
-  "name": "@jupyter/jupyter-suggestions-rtc",
+  "name": "@jupyter/suggestions-rtc",
   "version": "0.1.0",
   "description": "jupyter-suggestions with jupyter-collaboration backend",
   "keywords": [
@@ -44,9 +44,9 @@
     "watch:labextension": "jupyter labextension watch ."
   },
   "dependencies": {
-    "@jupyter/collaborative-drive": "^3.1.0-rc.0",
-    "@jupyter/docprovider": "^3.1.0-rc.0",
-    "@jupyter/jupyter-suggestions-base": "^0.1.0",
+    "@jupyter/collaborative-drive": "^3.1.0",
+    "@jupyter/docprovider": "^3.1.0",
+    "@jupyter/suggestions-base": "^0.1.0",
     "@jupyterlab/application": "^4.0.0",
     "@jupyterlab/notebook": "^4.0.0"
   },
@@ -78,7 +78,7 @@
     "extension": true,
     "outputDir": "jupyter_suggestions_rtc/labextension",
     "sharedPackages": {
-      "@jupyter/jupyter-suggestions-base": {
+      "@jupyter/suggestions-base": {
         "singleton": true,
         "bundled": false
       },

@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["jupyter-collaboration>=3.1.0rc0"]
+dependencies = ["jupyter-collaboration>=3.1.0"]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 license = { file = "LICENSE" }
 name = "jupyter_suggestions_rtc"
@@ -40,8 +40,8 @@ artifacts = ["jupyter_suggestions_rtc/labextension"]
 exclude = [".github", "binder", "node_modules"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"install.json" = "share/jupyter/labextensions/@jupyter/jupyter-suggestions-rtc/install.json"
-"jupyter_suggestions_rtc/labextension" = "share/jupyter/labextensions/@jupyter/jupyter-suggestions-rtc"
+"install.json" = "share/jupyter/labextensions/@jupyter/suggestions-rtc/install.json"
+"jupyter_suggestions_rtc/labextension" = "share/jupyter/labextensions/@jupyter/suggestions-rtc"
 
 [tool.hatch.build.hooks.version]
 path = "jupyter_suggestions_rtc/_version.py"

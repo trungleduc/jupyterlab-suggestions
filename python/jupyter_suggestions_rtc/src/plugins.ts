@@ -1,7 +1,7 @@
 import {
   ISuggestionsManagerRegistry,
   ISuggestionsManagerRegistryToken
-} from '@jupyter/jupyter-suggestions-base';
+} from '@jupyter/suggestions-base';
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
@@ -12,7 +12,7 @@ import { RtcSuggestionsManager } from './manager';
 import { IForkManager, IForkManagerToken } from '@jupyter/docprovider';
 import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
 
-const NAME_SPACE = '@jupyter/jupyter-suggestions-rtc';
+const NAME_SPACE = '@jupyter/suggestions-rtc';
 
 export const suggestionsManagerPlugin: JupyterFrontEndPlugin<void> = {
   id: `${NAME_SPACE}:manager`,

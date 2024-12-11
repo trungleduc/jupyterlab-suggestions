@@ -12,5 +12,5 @@ except ImportError:
 def _jupyter_labextension_paths():
     return [{
         "src": "labextension",
-        "dest": "@jupyter/jupyter-suggestions-rtc"
+        "dest": "@jupyter/suggestions-rtc"
     }]

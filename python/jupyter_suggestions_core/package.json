@@ -1,5 +1,5 @@
 {
-  "name": "@jupyter/jupyter-suggestions-core",
+  "name": "@jupyter/suggestions-core",
   "version": "0.1.0",
   "description": "Jupyter Suggestions core extension",
   "keywords": [
@@ -44,7 +44,7 @@
     "watch:labextension": "jupyter labextension watch ."
   },
   "dependencies": {
-    "@jupyter/jupyter-suggestions-base": "^0.1.0",
+    "@jupyter/suggestions-base": "^0.1.0",
     "@jupyterlab/application": "^4.0.0",
     "@jupyterlab/notebook": "^4.0.0",
     "@jupyterlab/settingregistry": "^4.0.0",
@@ -80,7 +80,7 @@
     "extension": true,
     "outputDir": "jupyter_suggestions_core/labextension",
     "sharedPackages": {
-      "@jupyter/jupyter-suggestions-base": {
+      "@jupyter/suggestions-base": {
         "singleton": true,
         "bundled": true
       }

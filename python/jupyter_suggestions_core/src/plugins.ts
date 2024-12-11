@@ -8,7 +8,7 @@ import {
   SuggestionsManagerRegistry,
   SuggestionsModel,
   SuggestionsPanelWidget
-} from '@jupyter/jupyter-suggestions-base';
+} from '@jupyter/suggestions-base';
 import {
   ILayoutRestorer,
   JupyterFrontEnd,
@@ -24,7 +24,7 @@ import {
 import { SuggestionsSettingComponent } from './settingrenderer';
 import type { FieldProps } from '@rjsf/utils';
 
-const NAME_SPACE = '@jupyter/jupyter-suggestions-core';
+const NAME_SPACE = '@jupyter/suggestions-core';
 
 export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
   {

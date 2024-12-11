@@ -2,7 +2,7 @@ import { ICollaborativeDrive } from '@jupyter/collaborative-drive';
 import {
   IForkChangedEvent,
   IForkManager,
-  requestAPI
+  requestDocSession
 } from '@jupyter/docprovider';
 import {
   BaseSuggestionsManager,
@@ -10,7 +10,7 @@ import {
   IDict,
   ISuggestionData,
   ISuggestionsManager
-} from '@jupyter/jupyter-suggestions-base';
+} from '@jupyter/suggestions-base';
 import { YNotebook } from '@jupyter/ydoc';
 import {
   Cell,
@@ -60,19 +60,16 @@ export class RtcSuggestionsManager
   async getAllSuggestions(
     notebook: NotebookPanel
   ): Promise<IAllSuggestionData | undefined> {
-    if (!this._serverSession) {
-      const res = await requestAPI<{ sessionId: string }>(
-        URLExt.join('api/collaboration/session/'),
-        {
-          method: 'GET'
-        }
-      );
-      this._serverSession = res.sessionId;
-    }
     const rootDocId = notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
+
+    const [format, type] = rootDocId.split(':');
     const path = notebook.context.localPath;
+    if (!this._serverSession) {
+      const docSession = await requestDocSession(format, type, path);
+      this._serverSession = docSession.sessionId;
+    }
     if (this._suggestionsMap.has(path)) {
       return this._suggestionsMap.get(path);
     } else {
