@@ -13,6 +13,8 @@ import { ISignal, Signal } from '@lumino/signaling';
 import { Cell, ICellModel } from '@jupyterlab/cells';
 import { IObservableList } from '@jupyterlab/observables';
 import { User } from '@jupyterlab/services';
+import { ISharedCell, ISharedNotebook, NotebookChange } from '@jupyter/ydoc';
+import { PromiseDelegate } from '@lumino/coreutils';
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
     this._userManager = options.userManager;
@@ -265,6 +267,10 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._handleCellListChanged,
       this
     );
+    this._notebookPanel.content.model?.sharedModel.changed.connect(
+      this._handleNotebookChanged,
+      this
+    );
   }
 
   private _disconnectPanelSignal() {
@@ -284,14 +290,30 @@ export class SuggestionsModel implements ISuggestionsModel {
   ) {
     this._activeCellChanged.emit({ cellId: cell?.model.id });
   }
-
-  private async _handleCellListChanged(
-    cellList: CellList,
-    changed: IObservableList.IChangedArgs<ICellModel>
+  private async _handleNotebookChanged(
+    _: ISharedNotebook,
+    changed: NotebookChange
   ) {
-    switch (changed.type) {
-      case 'remove': {
-        const cellInNotebook = new Set([...cellList].map(it => it.id));
+    const { cellsChange } = changed;
+    if (cellsChange) {
+      let haveDelete = false;
+      let haveInsert: ISharedCell[] | undefined;
+      for (const c of cellsChange) {
+        if (c.delete !== undefined) {
+          haveDelete = true;
+        }
+        if (c.insert !== undefined) {
+          haveInsert = c.insert;
+        }
+      }
+      const cellMap: IDict<ICellModel> = {};
+      [...(this._notebookPanel?.model?.cells ?? [])].forEach(it => {
+        cellMap[it.id] = it;
+      });
+
+      if (!haveInsert && haveDelete) {
+        // Cell deleted
+        const cellInNotebook = new Set(Object.keys(cellMap));
         const cellInModel = [...(this._allSuggestions?.keys() ?? [])];
         const removedElements = cellInModel.filter(
           el => !cellInNotebook.has(el)
@@ -302,28 +324,90 @@ export class SuggestionsModel implements ISuggestionsModel {
             await this.deleteSuggestion({ cellId: removed, suggestionId });
           }
         }
-        break;
       }
-      case 'add': {
-        const newCells = changed.newValues;
+      if (haveInsert && haveDelete) {
+        // Cell moved
+        const movedCells = haveInsert;
         let needEmit = false;
-        for (const cell of newCells) {
-          const id = cell.id;
-          if (this._allSuggestions?.has(id)) {
-            const cellSuggestions = this._allSuggestions.get(id)!;
-            const allSuggestions = Object.values(cellSuggestions);
-            needEmit = allSuggestions.length > 0;
-            allSuggestions.forEach(it => (it.originalCellModel = cell));
+        for (const cell of movedCells) {
+          const cellId = cell.id;
+          if (!this._queue[cellId]) {
+            this._queue[cellId] = new PromiseDelegate<void>();
           }
+          const pd = this._queue[cellId];
+          if (this._allSuggestions?.has(cellId)) {
+            const cellSuggestions = this._allSuggestions.get(cellId)!;
+            const allSuggestions = Object.entries(cellSuggestions);
+            const originalCell = cellMap[cellId];
+            let shouldWait = false;
+            if (originalCell && allSuggestions.length > 0) {
+              needEmit = true;
+              allSuggestions.forEach(([suggestionId, it]) => {
+                it.originalCellModel = originalCell;
+                shouldWait = it.cellModel.sharedModel.isStandalone;
+              });
+              if (shouldWait) {
+                await pd.promise;
+              }
+            }
+          }
+
+          delete this._queue[cellId];
         }
         if (needEmit) {
           this._allSuggestionsChanged.emit();
         }
-        break;
       }
-      default:
-        break;
     }
+  }
+  private async _handleCellListChanged(
+    cellList: CellList,
+    changed: IObservableList.IChangedArgs<ICellModel>
+  ) {
+    // console.log('changed', changed);
+    // switch (changed.type) {
+    //   case 'remove': {
+    //     const cellInNotebook = new Set([...cellList].map(it => it.id));
+    //     const cellInModel = [...(this._allSuggestions?.keys() ?? [])];
+    //     console.log('cellInNotebook', cellInNotebook);
+    //     console.log('cellInModel', cellInModel);
+    //     const removedElements = cellInModel.filter(
+    //       el => !cellInNotebook.has(el)
+    //     );
+    //     for (const removed of removedElements) {
+    //       const suggestions = this._allSuggestions?.get(removed) ?? {};
+    //       for (const suggestionId in suggestions) {
+    //         await this.deleteSuggestion({ cellId: removed, suggestionId });
+    //       }
+    //     }
+    //     break;
+    //   }
+    //   case 'add': {
+    //     const newCells = changed.newValues;
+    //     let needEmit = false;
+    //     for (const cell of newCells) {
+    //       const id = cell.id;
+    //       if (this._allSuggestions?.has(id)) {
+    //         const cellSuggestions = this._allSuggestions.get(id)!;
+    //         const allSuggestions = Object.values(cellSuggestions);
+    //         needEmit = allSuggestions.length > 0;
+    //         allSuggestions.forEach(it => {
+    //           console.log(
+    //             'updating original source',
+    //             cell.sharedModel.getSource()
+    //           );
+    //           it.originalCellModel = cell;
+    //         });
+    //       }
+    //     }
+    //     if (needEmit) {
+    //       this._allSuggestionsChanged.emit();
+    //     }
+    //     break;
+    //   }
+    //   default:
+    //     break;
+    // }
   }
   private _handleSuggestionChanged(
     manager: ISuggestionsManager,
@@ -331,7 +415,28 @@ export class SuggestionsModel implements ISuggestionsModel {
   ) {
     const { notebookPath, ...newChanged } = changed;
     if (notebookPath === this._filePath) {
-      this._suggestionChanged.emit(newChanged);
+      if (changed.operator === 'modified') {
+        const { cellId, suggestionId, modifiedData } = changed;
+        if (this._allSuggestions?.has(cellId)) {
+          const cellSuggestions = this._allSuggestions.get(cellId)!;
+          const updatedSuggestion = cellSuggestions[suggestionId];
+          if (updatedSuggestion && modifiedData) {
+            if (modifiedData.cellModel) {
+              updatedSuggestion.cellModel = modifiedData.cellModel;
+            }
+            if (modifiedData.metadata) {
+              updatedSuggestion.metadata = modifiedData.metadata;
+            }
+          }
+        }
+        if (!this._queue[cellId]) {
+          this._queue[cellId] = new PromiseDelegate<void>();
+        }
+        const pd = this._queue[cellId];
+        pd.resolve();
+      } else {
+        this._suggestionChanged.emit(newChanged);
+      }
     }
   }
 
@@ -350,6 +455,8 @@ export class SuggestionsModel implements ISuggestionsModel {
     ISuggestionsModel,
     { cellId?: string }
   >(this);
+
+  private _queue: IDict<PromiseDelegate<void>> = {};
 }
 
 export namespace SuggestionsModel {

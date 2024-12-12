@@ -198,6 +198,7 @@ export interface ISuggestionChange {
   notebookPath: string;
   cellId: string;
   operator: 'added' | 'deleted' | 'modified';
+  modifiedData?: Partial<ISuggestionData>;
   suggestionId: string;
 }
 export type IAllSuggestionViewData = Map<string, IDict<ISuggestionViewData>>;
@@ -226,6 +227,7 @@ export interface ISuggestionsManager extends IDisposable {
    * Signal emitted when a suggestion is changed.
    */
   suggestionChanged: ISignal<ISuggestionsManager, ISuggestionChange>;
+
   /**
    * Retrieves all suggestions for a given notebook.
    *
@@ -233,7 +235,10 @@ export interface ISuggestionsManager extends IDisposable {
    * @returns An object containing all suggestions or undefined if
    * no suggestions are available.
    */
-  getAllSuggestions(notebook: NotebookPanel): Promise<IAllSuggestionData>;
+  getAllSuggestions(
+    notebook: NotebookPanel,
+    reset?: boolean
+  ): Promise<IAllSuggestionData>;
 
   /**
    * Adds a new suggestion to a specified cell in the notebook.

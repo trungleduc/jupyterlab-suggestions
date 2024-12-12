@@ -11,7 +11,15 @@ import {
   ISuggestionData,
   ISuggestionsManager
 } from '@jupyter/suggestions-base';
-import { YNotebook } from '@jupyter/ydoc';
+import {
+  ISharedCell,
+  ISharedCodeCell,
+  ISharedMarkdownCell,
+  ISharedRawCell,
+  NotebookChange,
+  YCellType,
+  YNotebook
+} from '@jupyter/ydoc';
 import {
   Cell,
   CellModel,
@@ -25,6 +33,7 @@ import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { PromiseDelegate } from '@lumino/coreutils';
 import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
 import { User } from '@jupyterlab/services';
+import { Signal } from '@lumino/signaling';
 
 const DOCUMENT_PROVIDER_URL = 'api/collaboration/room';
 
@@ -89,7 +98,8 @@ export class RtcSuggestionsManager
           rootDocId,
           forkRoomId,
           cellId,
-          mimeType: cellMap[cellId].mimeType
+          mimeType: cellMap[cellId].mimeType,
+          forkMeta
         });
         const data: ISuggestionData = {
           cellModel,
@@ -158,6 +168,13 @@ export class RtcSuggestionsManager
     const { suggestionId } = options;
     try {
       await this._forkManager.deleteFork({ forkId: suggestionId, merge: true });
+
+      const ynb = this._allSharedNotebook.get(suggestionId);
+      if (ynb) {
+        Signal.clearData(ynb);
+        ynb.dispose();
+      }
+      this._allSharedNotebook.delete(suggestionId);
       return true;
     } catch (e) {
       console.error(e);
@@ -172,6 +189,12 @@ export class RtcSuggestionsManager
   }): Promise<void> {
     const { suggestionId } = options;
     await this._forkManager.deleteFork({ forkId: suggestionId, merge: false });
+    const ynb = this._allSharedNotebook.get(suggestionId);
+    if (ynb) {
+      Signal.clearData(ynb);
+      ynb.dispose();
+    }
+    this._allSharedNotebook.delete(suggestionId);
   }
 
   async updateSuggestion(options: {
@@ -206,6 +229,76 @@ export class RtcSuggestionsManager
     }
   }
 
+  private async _handleForkNotebookChanged(
+    notebook: YNotebook,
+    changed: NotebookChange,
+    forkMeta: any,
+    forkRoomId: string
+  ) {
+    const { cellsChange } = changed;
+    if (cellsChange) {
+      let haveDelete = false;
+      let haveInsert: ISharedCell[] | undefined;
+      for (const c of cellsChange) {
+        if (c.delete !== undefined) {
+          haveDelete = true;
+        }
+        if (c.insert !== undefined) {
+          haveInsert = c.insert;
+        }
+      }
+
+      const cellMap: IDict<YCellType> = {};
+      [...(notebook.cells ?? [])].forEach(it => {
+        cellMap[it.id] = it;
+      });
+
+      if (haveInsert && haveDelete) {
+        // Cell moved
+        const movedCells = haveInsert;
+
+        for (const cell of movedCells) {
+          const cellIdInFork = cell.id;
+          if (cellIdInFork === forkMeta.cellId) {
+            let copiedCellModel: CellModel | undefined;
+            switch (cell.cell_type) {
+              case 'code': {
+                copiedCellModel = new CodeCellModel({
+                  sharedModel: cell as ISharedCodeCell
+                });
+                copiedCellModel.mimeType = forkMeta.mimeType;
+                break;
+              }
+              case 'markdown': {
+                copiedCellModel = new MarkdownCellModel({
+                  sharedModel: cell as ISharedMarkdownCell
+                });
+                break;
+              }
+              case 'raw': {
+                copiedCellModel = new RawCellModel({
+                  sharedModel: cell as ISharedRawCell
+                });
+                break;
+              }
+              default:
+                break;
+            }
+            if (copiedCellModel) {
+              this._suggestionChanged.emit({
+                operator: 'modified',
+                cellId: forkMeta.cellId,
+                notebookPath: forkMeta.path,
+                suggestionId: forkRoomId,
+                modifiedData: { cellModel: copiedCellModel }
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
   private async _handleForkAdded(
     manager: IForkManager,
     changed: IForkChangedEvent
@@ -235,7 +328,8 @@ export class RtcSuggestionsManager
       rootDocId: rootId,
       forkRoomId: suggestionId,
       cellId,
-      mimeType
+      mimeType,
+      forkMeta
     });
     const suggestionContent: ISuggestionData = {
       originalCellId: cellId,
@@ -255,8 +349,9 @@ export class RtcSuggestionsManager
     forkRoomId: string;
     cellId: string;
     mimeType: string;
+    forkMeta: any;
   }): Promise<CellModel> {
-    const { rootDocId, forkRoomId, cellId, mimeType } = options;
+    const { rootDocId, forkRoomId, cellId, mimeType, forkMeta } = options;
     const [format, type] = rootDocId.split(':');
     const sharedModelFactory =
       this._drive.sharedModelFactory.documentFactories.get(type);
@@ -268,7 +363,10 @@ export class RtcSuggestionsManager
         contentType: type,
         collaborative: true
       }) as any as YNotebook;
-
+      this._allSharedNotebook.set(forkRoomId, shared);
+      shared.changed.connect((sender, args) =>
+        this._handleForkNotebookChanged(sender, args, forkMeta, forkRoomId)
+      );
       const _yWebsocketProvider = new YWebsocketProvider(
         this._serverUrl,
         forkRoomId,
@@ -323,7 +421,7 @@ export class RtcSuggestionsManager
     }
     return pd.promise;
   }
-
+  private _allSharedNotebook = new Map<string, YNotebook>();
   private _forkManager: IForkManager;
   private _drive: ICollaborativeDrive;
   private _serverSession?: string;
