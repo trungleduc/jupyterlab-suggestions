@@ -45,11 +45,13 @@ export class CellWidget extends Panel {
     );
     if (cellWidget) {
       this._cellWidget = cellWidget;
+
       const toolbar = new SuggestionToolbar({
         toggleMinimized: this.toggleMinimized.bind(this),
         deleteCallback: options.deleteCallback,
         acceptCallback: options.acceptCallback,
-        state: this._state
+        state: this._state,
+        metadata: suggestionData.metadata
       });
       this.addWidget(toolbar);
       this.addWidget(this._cellWidget);

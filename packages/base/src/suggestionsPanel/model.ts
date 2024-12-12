@@ -1,4 +1,4 @@
-import { Notebook, NotebookPanel } from '@jupyterlab/notebook';
+import { CellList, Notebook, NotebookPanel } from '@jupyterlab/notebook';
 import {
   IAllSuggestionViewData,
   IAllSuggestionData,
@@ -11,8 +11,11 @@ import {
 } from '../types';
 import { ISignal, Signal } from '@lumino/signaling';
 import { Cell, ICellModel } from '@jupyterlab/cells';
+import { IObservableList } from '@jupyterlab/observables';
+import { User } from '@jupyterlab/services';
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
+    this._userManager = options.userManager;
     this.switchNotebook(options.panel);
     this.switchManager(options.suggestionsManager);
   }
@@ -23,8 +26,8 @@ export class SuggestionsModel implements ISuggestionsModel {
   get filePath(): string {
     return this._filePath ?? '';
   }
-  get notebookSwitched(): ISignal<ISuggestionsModel, void> {
-    return this._notebookSwitched;
+  get allSuggestionsChanged(): ISignal<ISuggestionsModel, void> {
+    return this._allSuggestionsChanged;
   }
   get activeCellChanged(): ISignal<ISuggestionsModel, { cellId?: string }> {
     return this._activeCellChanged;
@@ -63,7 +66,8 @@ export class SuggestionsModel implements ISuggestionsModel {
     if (activeCell && this._notebookPanel && this._suggestionsManager) {
       await this._suggestionsManager.addSuggestion({
         notebook: this._notebookPanel,
-        cell: activeCell
+        cell: activeCell,
+        author: this._userManager.identity
       });
     }
   }
@@ -72,12 +76,18 @@ export class SuggestionsModel implements ISuggestionsModel {
     suggestionId: string;
   }): Promise<void> {
     const { cellId, suggestionId } = options;
-    if (cellId && this._notebookPanel && this._suggestionsManager) {
-      await this._suggestionsManager.deleteSuggestion({
-        notebook: this._notebookPanel,
-        cellId,
-        suggestionId
-      });
+    if (cellId && this._notebookPanel) {
+      if (this._suggestionsManager) {
+        await this._suggestionsManager.deleteSuggestion({
+          notebook: this._notebookPanel,
+          cellId,
+          suggestionId
+        });
+      }
+      if (this._allSuggestions && this._allSuggestions.has(cellId)) {
+        const cellSuggestions = this._allSuggestions.get(cellId)!;
+        delete cellSuggestions[suggestionId];
+      }
     }
   }
 
@@ -110,15 +120,39 @@ export class SuggestionsModel implements ISuggestionsModel {
       });
     }
   }
-  async getSuggestion(options: { cellId: string; suggestionId: string }) {
+  async getSuggestion(options: {
+    cellId: string;
+    suggestionId: string;
+  }): Promise<ISuggestionViewData | undefined> {
     if (!this._filePath || !this._suggestionsManager) {
       return;
     }
-    const suggestionFromManager = await this._suggestionsManager.getSuggestion({
-      notebookPath: this._filePath,
-      ...options
-    });
-    return this._convertSuggestionFromManager(suggestionFromManager);
+    const { cellId, suggestionId } = options;
+    let cellSuggestions: IDict<ISuggestionViewData> | undefined = undefined;
+    if (!this._allSuggestions?.has(cellId)) {
+      cellSuggestions = {};
+      this._allSuggestions?.set(cellId, cellSuggestions);
+    } else {
+      cellSuggestions = this._allSuggestions.get(cellId)!;
+    }
+    if (!cellSuggestions[suggestionId]) {
+      const suggestionFromManager =
+        await this._suggestionsManager.getSuggestion({
+          notebookPath: this._filePath,
+          ...options
+        });
+      const suggestionData = this._convertSuggestionFromManager(
+        suggestionFromManager
+      );
+      if (suggestionData) {
+        cellSuggestions[suggestionId] = suggestionData;
+      }
+    }
+    return cellSuggestions[suggestionId];
+  }
+
+  getActiveCell(): Cell<ICellModel> | null | undefined {
+    return this._notebookPanel?.content.activeCell;
   }
   getCellIndex(cellId?: string): number {
     if (!cellId) {
@@ -153,8 +187,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     } else {
       this._allSuggestions = undefined;
     }
-
-    this._notebookSwitched.emit();
+    this._allSuggestionsChanged.emit();
   }
   async switchManager(manager: ISuggestionsManager | undefined): Promise<void> {
     if (!manager) {
@@ -175,7 +208,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._allSuggestions = this._convertAllSuggestionsFromManager(
         allSuggestionsFromManager
       );
-      this._notebookSwitched.emit();
+      this._allSuggestionsChanged.emit();
     }
   }
 
@@ -185,11 +218,15 @@ export class SuggestionsModel implements ISuggestionsModel {
     if (!source || !this._notebookPanel) {
       return;
     }
-    const { originalCellId } = source;
+    const { originalCellId, metadata, cellModel } = source;
     const cells = this._notebookPanel.context.model.cells;
     for (const it of cells) {
       if (it.id === originalCellId) {
-        return { cellModel: source.cellModel, originalCellModel: it };
+        return {
+          cellModel,
+          originalCellModel: it,
+          metadata
+        };
       }
     }
   }
@@ -223,6 +260,11 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._handleActiveCellChanged,
       this
     );
+
+    this._notebookPanel.content.model?.cells.changed.connect(
+      this._handleCellListChanged,
+      this
+    );
   }
 
   private _disconnectPanelSignal() {
@@ -232,12 +274,56 @@ export class SuggestionsModel implements ISuggestionsModel {
     this._notebookPanel.content.activeCellChanged.disconnect(
       this._handleActiveCellChanged
     );
+    this._notebookPanel.content.model?.cells.changed.disconnect(
+      this._handleCellListChanged
+    );
   }
   private _handleActiveCellChanged(
     nb: Notebook,
     cell: Cell<ICellModel> | null
   ) {
     this._activeCellChanged.emit({ cellId: cell?.model.id });
+  }
+
+  private async _handleCellListChanged(
+    cellList: CellList,
+    changed: IObservableList.IChangedArgs<ICellModel>
+  ) {
+    switch (changed.type) {
+      case 'remove': {
+        const cellInNotebook = new Set([...cellList].map(it => it.id));
+        const cellInModel = [...(this._allSuggestions?.keys() ?? [])];
+        const removedElements = cellInModel.filter(
+          el => !cellInNotebook.has(el)
+        );
+        for (const removed of removedElements) {
+          const suggestions = this._allSuggestions?.get(removed) ?? {};
+          for (const suggestionId in suggestions) {
+            await this.deleteSuggestion({ cellId: removed, suggestionId });
+          }
+        }
+        break;
+      }
+      case 'add': {
+        const newCells = changed.newValues;
+        let needEmit = false;
+        for (const cell of newCells) {
+          const id = cell.id;
+          if (this._allSuggestions?.has(id)) {
+            const cellSuggestions = this._allSuggestions.get(id)!;
+            const allSuggestions = Object.values(cellSuggestions);
+            needEmit = allSuggestions.length > 0;
+            allSuggestions.forEach(it => (it.originalCellModel = cell));
+          }
+        }
+        if (needEmit) {
+          this._allSuggestionsChanged.emit();
+        }
+        break;
+      }
+      default:
+        break;
+    }
   }
   private _handleSuggestionChanged(
     manager: ISuggestionsManager,
@@ -252,9 +338,10 @@ export class SuggestionsModel implements ISuggestionsModel {
   private _isDisposed = false;
   private _filePath?: string;
   private _notebookPanel: NotebookPanel | null = null;
-  private _notebookSwitched: Signal<this, void> = new Signal(this);
+  private _allSuggestionsChanged: Signal<this, void> = new Signal(this);
   private _allSuggestions?: IAllSuggestionViewData;
   private _suggestionsManager?: ISuggestionsManager;
+  private _userManager: User.IManager;
   private _suggestionChanged = new Signal<
     ISuggestionsModel,
     Omit<ISuggestionChange, 'notebookPath'>
@@ -269,5 +356,6 @@ export namespace SuggestionsModel {
   export interface IOptions {
     panel: NotebookPanel | null;
     suggestionsManager?: ISuggestionsManager;
+    userManager: User.IManager;
   }
 }

@@ -39,11 +39,13 @@ export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
       suggestionsManagerRegistry: ISuggestionsManagerRegistry
     ): Promise<ISuggestionsModel> => {
       console.log(`${NAME_SPACE}:model is activated`);
+      const userManager = app.serviceManager.user;
       const suggestionsManager =
         await suggestionsManagerRegistry.getActivatedManager();
       const model = new SuggestionsModel({
         panel: tracker.currentWidget,
-        suggestionsManager
+        suggestionsManager,
+        userManager
       });
       tracker.currentChanged.connect(async (_, changed) => {
         if (tracker.currentWidget) {

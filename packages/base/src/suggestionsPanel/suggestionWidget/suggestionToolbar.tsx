@@ -5,12 +5,14 @@ import { checkIcon, closeIcon } from '@jupyterlab/ui-components';
 import { collapseIcon, expandIcon } from '../../icons';
 import { IObservableMap } from '@jupyterlab/observables';
 import { JSONValue } from '@lumino/coreutils';
+import { ISuggestionMetadata } from '../../types';
 interface IProps {
   author?: string;
   state: IObservableMap<JSONValue>;
   toggleMinimized: (min: boolean) => void;
   deleteCallback: () => Promise<void>;
   acceptCallback: () => Promise<void>;
+  metadata: ISuggestionMetadata;
 }
 function _SuggestionToolbarReact(props: IProps) {
   const { toggleMinimized, state } = props;
@@ -31,8 +33,18 @@ function _SuggestionToolbarReact(props: IProps) {
       state.changed.disconnect(handler);
     };
   }, [state]);
+  const userData = props.metadata.author;
   return (
     <div className={toolbarStyle}>
+      {userData && (
+        <div
+          title={userData.display_name}
+          className={'lm-MenuBar-itemIcon jp-MenuBar-anonymousIcon'}
+          style={{ backgroundColor: userData.color }}
+        >
+          <span>{userData.initials}</span>
+        </div>
+      )}
       <ToolbarButtonComponent
         className={toolbarButtonStyle}
         icon={closeIcon}

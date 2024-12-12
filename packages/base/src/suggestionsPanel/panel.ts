@@ -15,17 +15,22 @@ export class SuggestionsPanelWidget extends SidePanel {
     this.header.addWidget(this._headerWidget);
 
     this.connectSignal();
-    this._handleNotebookSwitched();
+    this._handleAllSuggestionsChanged();
     const widget = new SuggestionsWidget({ model: this._model });
     this.addWidget(widget);
   }
 
   connectSignal() {
-    this._model.notebookSwitched.connect(this._handleNotebookSwitched, this);
+    this._model.allSuggestionsChanged.connect(
+      this._handleAllSuggestionsChanged,
+      this
+    );
   }
 
   disconnectSignal() {
-    this._model.notebookSwitched.disconnect(this._handleNotebookSwitched);
+    this._model.allSuggestionsChanged.disconnect(
+      this._handleAllSuggestionsChanged
+    );
     Signal.clearData(this);
   }
 
@@ -37,7 +42,7 @@ export class SuggestionsPanelWidget extends SidePanel {
     super.dispose();
   }
 
-  private _handleNotebookSwitched() {
+  private _handleAllSuggestionsChanged() {
     const filePath = this._model.filePath;
     const managerName = this._model.getSuggestionManagerName();
     this._headerWidget.title.label = `${managerName} - ${filePath}`;

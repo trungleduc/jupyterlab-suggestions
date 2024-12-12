@@ -25,7 +25,11 @@ export const suggestionCellStyle = style({
   }
 });
 export const suggestionCellSelectedStyle = style({
-  border:
-    'var(--jp-border-width) solid var(--jp-cell-editor-active-border-color)!important',
-  boxShadow: 'var(--jp-elevation-z4)'
+  $nest: {
+    '> div': {
+      border:
+        'var(--jp-border-width) solid var(--jp-cell-editor-active-border-color)!important',
+      boxShadow: 'var(--jp-elevation-z4)'
+    }
+  }
 });
