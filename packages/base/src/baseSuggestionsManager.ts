@@ -8,6 +8,7 @@ import {
   ISuggestionData,
   ISuggestionsManager
 } from './types';
+import { User } from '@jupyterlab/services';
 
 export abstract class BaseSuggestionsManager implements ISuggestionsManager {
   constructor(options: BaseSuggestionsManager.IOptions) {
@@ -36,7 +37,7 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
 
   abstract getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestionData | undefined>;
+  ): Promise<IAllSuggestionData>;
 
   async getSuggestion(options: {
     notebookPath: string;
@@ -54,6 +55,7 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
   abstract addSuggestion(options: {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
+    author?: User.IIdentity | null;
   }): Promise<string>;
 
   abstract acceptSuggestion(options: {

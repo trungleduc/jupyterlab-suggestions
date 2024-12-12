@@ -24,6 +24,7 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
 import { PromiseDelegate } from '@lumino/coreutils';
 import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
+import { User } from '@jupyterlab/services';
 
 const DOCUMENT_PROVIDER_URL = 'api/collaboration/room';
 
@@ -59,7 +60,7 @@ export class RtcSuggestionsManager
   }
   async getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestionData | undefined> {
+  ): Promise<IAllSuggestionData> {
     const rootDocId = notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
@@ -71,7 +72,7 @@ export class RtcSuggestionsManager
       this._serverSession = docSession.sessionId;
     }
     if (this._suggestionsMap.has(path)) {
-      return this._suggestionsMap.get(path);
+      return this._suggestionsMap.get(path)!;
     } else {
       const allForks = await this._forkManager.getAllForks(rootDocId);
       const currentSuggestion = new Map<string, IDict<ISuggestionData>>();
@@ -83,6 +84,7 @@ export class RtcSuggestionsManager
       for (const [forkRoomId, forkData] of Object.entries(allForks)) {
         const forkMeta = JSON.parse(forkData.description ?? '{}');
         const cellId = forkMeta.cellId;
+        const metadata = forkMeta.metadata;
         const cellModel = await this._cellModelFactory({
           rootDocId,
           forkRoomId,
@@ -91,7 +93,8 @@ export class RtcSuggestionsManager
         });
         const data: ISuggestionData = {
           cellModel,
-          originalCellId: cellId
+          originalCellId: cellId,
+          metadata
         };
         if (currentSuggestion.has(cellId)) {
           const currentData = currentSuggestion.get(cellId)!;
@@ -124,8 +127,9 @@ export class RtcSuggestionsManager
   async addSuggestion(options: {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
+    author?: User.IIdentity | null;
   }): Promise<string> {
-    const { notebook, cell } = options;
+    const { notebook, cell, author } = options;
     const path = notebook.context.localPath;
 
     const cellId = cell.model.id;
@@ -139,7 +143,8 @@ export class RtcSuggestionsManager
       description: JSON.stringify({
         cellId,
         path,
-        mimeType: cell.model.mimeType
+        mimeType: cell.model.mimeType,
+        metadata: { author }
       })
     });
     return response?.fork_roomid ?? '';
@@ -207,7 +212,7 @@ export class RtcSuggestionsManager
   ) {
     const forkInfo = changed.fork_info;
     const forkMeta = JSON.parse(forkInfo.description ?? '{}');
-    const { cellId, path, mimeType } = forkMeta;
+    const { cellId, path, mimeType, metadata } = forkMeta;
     const rootId = forkInfo.root_roomid;
     const suggestionId = changed.fork_roomid;
     if (!path || !cellId) {
@@ -234,7 +239,8 @@ export class RtcSuggestionsManager
     });
     const suggestionContent: ISuggestionData = {
       originalCellId: cellId,
-      cellModel
+      cellModel,
+      metadata
     };
     cellSuggesions[suggestionId] = suggestionContent;
     this._suggestionChanged.emit({

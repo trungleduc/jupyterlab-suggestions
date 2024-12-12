@@ -2,8 +2,13 @@ import { NotebookPanel } from '@jupyterlab/notebook';
 import { ISignal } from '@lumino/signaling';
 import { IDisposable } from '@lumino/disposable';
 import { Cell, ICellModel } from '@jupyterlab/cells';
+import { User } from '@jupyterlab/services';
 export interface IDict<T = any> {
   [key: string]: T;
+}
+
+export interface ISuggestionMetadata {
+  author?: User.IIdentity | null;
 }
 
 /**
@@ -19,6 +24,11 @@ export interface ISuggestionData {
    * The model of the suggestion cell.
    */
   cellModel: ICellModel;
+
+  /**
+   * Suggestion metadata.
+   */
+  metadata: ISuggestionMetadata;
 }
 
 /**
@@ -34,6 +44,11 @@ export interface ISuggestionViewData {
    * The model of the suggestion cell.
    */
   cellModel: ICellModel;
+
+  /**
+   * Suggestion metadata.
+   */
+  metadata: ISuggestionMetadata;
 }
 
 /**
@@ -66,9 +81,9 @@ export interface ISuggestionsModel extends IDisposable {
   allSuggestions: IAllSuggestionViewData | undefined;
 
   /**
-   * Signal emitted when the notebook is switched.
+   * Signal emitted when the suggestion panel needs rerender.
    */
-  notebookSwitched: ISignal<ISuggestionsModel, void>;
+  allSuggestionsChanged: ISignal<ISuggestionsModel, void>;
 
   /**
    * Signal emitted when the active cell in the notebook changes.
@@ -175,6 +190,8 @@ export interface ISuggestionsModel extends IDisposable {
    * @returns The index of the cell, or -1 if the cell is not found.
    */
   getCellIndex(cellId?: string): number;
+
+  getActiveCell(): Cell<ICellModel> | null | undefined;
 }
 
 export interface ISuggestionChange {
@@ -216,9 +233,7 @@ export interface ISuggestionsManager extends IDisposable {
    * @returns An object containing all suggestions or undefined if
    * no suggestions are available.
    */
-  getAllSuggestions(
-    notebook: NotebookPanel
-  ): Promise<IAllSuggestionData | undefined>;
+  getAllSuggestions(notebook: NotebookPanel): Promise<IAllSuggestionData>;
 
   /**
    * Adds a new suggestion to a specified cell in the notebook.
@@ -229,6 +244,7 @@ export interface ISuggestionsManager extends IDisposable {
   addSuggestion(options: {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
+    author?: User.IIdentity | null;
   }): Promise<string>;
 
   /**
