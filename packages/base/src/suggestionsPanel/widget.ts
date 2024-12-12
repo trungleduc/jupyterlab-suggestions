@@ -2,6 +2,7 @@ import { PanelWithToolbar } from '@jupyterlab/ui-components';
 import { Panel, Widget } from '@lumino/widgets';
 
 import {
+  IDict,
   ISuggestionChange,
   ISuggestionViewData,
   ISuggestionsModel
@@ -62,7 +63,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
           }
           cellSuggestionPanel.addWidget(widget);
 
-          this._scrollToWidget(widget);
+          this._highlightCellSuggestions(cellId);
         }
         break;
       }
@@ -83,6 +84,20 @@ export class SuggestionsWidget extends PanelWithToolbar {
       }
       case 'modified': {
         break;
+        // const suggestion = await this._model.getSuggestion({
+        //   cellId,
+        //   suggestionId
+        // });
+        // const cellSuggestionsPanel = this._cellSuggestionsPanel.get(cellId);
+        // if (!cellSuggestionsPanel) {
+        //   break;
+        // }
+        // const allWidgets = [...cellSuggestionsPanel.widgets] as CellWidget[];
+        // for (const element of allWidgets) {
+        //   if (element.id === suggestionId) {
+        //     break;
+        //   }
+        // }
       }
 
       default:
@@ -97,6 +112,9 @@ export class SuggestionsWidget extends PanelWithToolbar {
     args: { cellId?: string }
   ) {
     const { cellId } = args;
+    cellId && this._highlightCellSuggestions(cellId);
+  }
+  private _highlightCellSuggestions(cellId: string): void {
     this._cellSuggestionsPanel.forEach((p, k) => {
       if (k === cellId) {
         p.addClass(suggestionCellSelectedStyle);
@@ -111,7 +129,6 @@ export class SuggestionsWidget extends PanelWithToolbar {
       }
     });
   }
-
   private _scrollToWidget(w?: Widget) {
     if (!w) {
       return;
@@ -136,22 +153,30 @@ export class SuggestionsWidget extends PanelWithToolbar {
     });
     this._cellSuggestionsPanel.clear();
     if (allSuggestions) {
-      for (const val of allSuggestions.values()) {
+      const suggestionPanelByIndex: IDict<Panel> = {};
+      for (const [cellId, val] of allSuggestions.entries()) {
+        const cellSuggestionPanel = new Panel();
+        this._cellSuggestionsPanel.set(cellId, cellSuggestionPanel);
+        const cellIdx = this._model.getCellIndex(cellId);
+        suggestionPanelByIndex[cellIdx] = cellSuggestionPanel;
         Object.entries(val).forEach(([suggestionId, suggestionData]) => {
           const { widget } = this._widgetFactory({
             suggestionId,
             suggestionData
           });
-          const cellId = suggestionData.originalCellModel.id;
-          const cellIdx = this._model.getCellIndex(cellId);
-          let cellSuggestionPanel = this._cellSuggestionsPanel.get(cellId);
-          if (!cellSuggestionPanel) {
-            cellSuggestionPanel = new Panel();
-            this._cellSuggestionsPanel.set(cellId, cellSuggestionPanel);
-            this._suggestionsArea.insertWidget(cellIdx, cellSuggestionPanel);
-          }
+
+
           cellSuggestionPanel.addWidget(widget);
         });
+      }
+      const sortedKey = [...Object.keys(suggestionPanelByIndex)].sort(
+        (a, b) => parseInt(a) - parseInt(b)
+      );
+      for (const k of sortedKey) {
+        this._suggestionsArea.insertWidget(
+          parseInt(k),
+          suggestionPanelByIndex[k]
+        );
       }
     }
 
