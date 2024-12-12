@@ -84,20 +84,6 @@ export class SuggestionsWidget extends PanelWithToolbar {
       }
       case 'modified': {
         break;
-        // const suggestion = await this._model.getSuggestion({
-        //   cellId,
-        //   suggestionId
-        // });
-        // const cellSuggestionsPanel = this._cellSuggestionsPanel.get(cellId);
-        // if (!cellSuggestionsPanel) {
-        //   break;
-        // }
-        // const allWidgets = [...cellSuggestionsPanel.widgets] as CellWidget[];
-        // for (const element of allWidgets) {
-        //   if (element.id === suggestionId) {
-        //     break;
-        //   }
-        // }
       }
 
       default:
@@ -164,8 +150,6 @@ export class SuggestionsWidget extends PanelWithToolbar {
             suggestionId,
             suggestionData
           });
-
-
           cellSuggestionPanel.addWidget(widget);
         });
       }

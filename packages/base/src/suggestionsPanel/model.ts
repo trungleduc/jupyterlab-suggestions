@@ -1,20 +1,22 @@
-import { CellList, Notebook, NotebookPanel } from '@jupyterlab/notebook';
+import { ISharedNotebook, NotebookChange } from '@jupyter/ydoc';
+import { Cell, ICellModel } from '@jupyterlab/cells';
+import { Notebook, NotebookPanel } from '@jupyterlab/notebook';
+import { User } from '@jupyterlab/services';
+import { PromiseDelegate } from '@lumino/coreutils';
+import { ISignal, Signal } from '@lumino/signaling';
+
 import {
-  IAllSuggestionViewData,
   IAllSuggestionData,
+  IAllSuggestionViewData,
   IDict,
   ISuggestionChange,
-  ISuggestionViewData,
   ISuggestionData,
   ISuggestionsManager,
-  ISuggestionsModel
+  ISuggestionsModel,
+  ISuggestionViewData
 } from '../types';
-import { ISignal, Signal } from '@lumino/signaling';
-import { Cell, ICellModel } from '@jupyterlab/cells';
-import { IObservableList } from '@jupyterlab/observables';
-import { User } from '@jupyterlab/services';
-import { ISharedCell, ISharedNotebook, NotebookChange } from '@jupyter/ydoc';
-import { PromiseDelegate } from '@lumino/coreutils';
+import { detectCellChangedEvent, getCellMap } from '../tools';
+
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
     this._userManager = options.userManager;
@@ -189,6 +191,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     } else {
       this._allSuggestions = undefined;
     }
+    this._promiseQueue = {};
     this._allSuggestionsChanged.emit();
   }
   async switchManager(manager: ISuggestionsManager | undefined): Promise<void> {
@@ -210,6 +213,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       this._allSuggestions = this._convertAllSuggestionsFromManager(
         allSuggestionsFromManager
       );
+      this._promiseQueue = {};
       this._allSuggestionsChanged.emit();
     }
   }
@@ -263,10 +267,6 @@ export class SuggestionsModel implements ISuggestionsModel {
       this
     );
 
-    this._notebookPanel.content.model?.cells.changed.connect(
-      this._handleCellListChanged,
-      this
-    );
     this._notebookPanel.content.model?.sharedModel.changed.connect(
       this._handleNotebookChanged,
       this
@@ -280,9 +280,6 @@ export class SuggestionsModel implements ISuggestionsModel {
     this._notebookPanel.content.activeCellChanged.disconnect(
       this._handleActiveCellChanged
     );
-    this._notebookPanel.content.model?.cells.changed.disconnect(
-      this._handleCellListChanged
-    );
   }
   private _handleActiveCellChanged(
     nb: Notebook,
@@ -294,25 +291,12 @@ export class SuggestionsModel implements ISuggestionsModel {
     _: ISharedNotebook,
     changed: NotebookChange
   ) {
-    const { cellsChange } = changed;
-    if (cellsChange) {
-      let haveDelete = false;
-      let haveInsert: ISharedCell[] | undefined;
-      for (const c of cellsChange) {
-        if (c.delete !== undefined) {
-          haveDelete = true;
-        }
-        if (c.insert !== undefined) {
-          haveInsert = c.insert;
-        }
-      }
-      const cellMap: IDict<ICellModel> = {};
-      [...(this._notebookPanel?.model?.cells ?? [])].forEach(it => {
-        cellMap[it.id] = it;
-      });
+    const cellChangedEvent = detectCellChangedEvent(changed);
+    if (cellChangedEvent) {
+      const { event } = cellChangedEvent;
+      const cellMap = getCellMap(this._notebookPanel);
 
-      if (!haveInsert && haveDelete) {
-        // Cell deleted
+      if (event === 'deleted') {
         const cellInNotebook = new Set(Object.keys(cellMap));
         const cellInModel = [...(this._allSuggestions?.keys() ?? [])];
         const removedElements = cellInModel.filter(
@@ -325,20 +309,23 @@ export class SuggestionsModel implements ISuggestionsModel {
           }
         }
       }
-      if (haveInsert && haveDelete) {
-        // Cell moved
-        const movedCells = haveInsert;
+      if (event === 'moved') {
+        const movedCells = cellChangedEvent.movedCells ?? [];
+        // Only emit rerender signal if the moved cell has suggestions
         let needEmit = false;
         for (const cell of movedCells) {
           const cellId = cell.id;
-          if (!this._queue[cellId]) {
-            this._queue[cellId] = new PromiseDelegate<void>();
+          if (!this._promiseQueue[cellId]) {
+            this._promiseQueue[cellId] = new PromiseDelegate<void>();
           }
-          const pd = this._queue[cellId];
+          const pd = this._promiseQueue[cellId];
           if (this._allSuggestions?.has(cellId)) {
             const cellSuggestions = this._allSuggestions.get(cellId)!;
             const allSuggestions = Object.entries(cellSuggestions);
             const originalCell = cellMap[cellId];
+            // In case of a stanalone cell shared model, the `cellModel`
+            // of the associated suggestion data needs to be updated
+            // by the parent document, so we need to wait for it.
             let shouldWait = false;
             if (originalCell && allSuggestions.length > 0) {
               needEmit = true;
@@ -352,7 +339,7 @@ export class SuggestionsModel implements ISuggestionsModel {
             }
           }
 
-          delete this._queue[cellId];
+          delete this._promiseQueue[cellId];
         }
         if (needEmit) {
           this._allSuggestionsChanged.emit();
@@ -360,55 +347,7 @@ export class SuggestionsModel implements ISuggestionsModel {
       }
     }
   }
-  private async _handleCellListChanged(
-    cellList: CellList,
-    changed: IObservableList.IChangedArgs<ICellModel>
-  ) {
-    // console.log('changed', changed);
-    // switch (changed.type) {
-    //   case 'remove': {
-    //     const cellInNotebook = new Set([...cellList].map(it => it.id));
-    //     const cellInModel = [...(this._allSuggestions?.keys() ?? [])];
-    //     console.log('cellInNotebook', cellInNotebook);
-    //     console.log('cellInModel', cellInModel);
-    //     const removedElements = cellInModel.filter(
-    //       el => !cellInNotebook.has(el)
-    //     );
-    //     for (const removed of removedElements) {
-    //       const suggestions = this._allSuggestions?.get(removed) ?? {};
-    //       for (const suggestionId in suggestions) {
-    //         await this.deleteSuggestion({ cellId: removed, suggestionId });
-    //       }
-    //     }
-    //     break;
-    //   }
-    //   case 'add': {
-    //     const newCells = changed.newValues;
-    //     let needEmit = false;
-    //     for (const cell of newCells) {
-    //       const id = cell.id;
-    //       if (this._allSuggestions?.has(id)) {
-    //         const cellSuggestions = this._allSuggestions.get(id)!;
-    //         const allSuggestions = Object.values(cellSuggestions);
-    //         needEmit = allSuggestions.length > 0;
-    //         allSuggestions.forEach(it => {
-    //           console.log(
-    //             'updating original source',
-    //             cell.sharedModel.getSource()
-    //           );
-    //           it.originalCellModel = cell;
-    //         });
-    //       }
-    //     }
-    //     if (needEmit) {
-    //       this._allSuggestionsChanged.emit();
-    //     }
-    //     break;
-    //   }
-    //   default:
-    //     break;
-    // }
-  }
+
   private _handleSuggestionChanged(
     manager: ISuggestionsManager,
     changed: ISuggestionChange
@@ -429,10 +368,10 @@ export class SuggestionsModel implements ISuggestionsModel {
             }
           }
         }
-        if (!this._queue[cellId]) {
-          this._queue[cellId] = new PromiseDelegate<void>();
+        if (!this._promiseQueue[cellId]) {
+          this._promiseQueue[cellId] = new PromiseDelegate<void>();
         }
-        const pd = this._queue[cellId];
+        const pd = this._promiseQueue[cellId];
         pd.resolve();
       } else {
         this._suggestionChanged.emit(newChanged);
@@ -456,7 +395,11 @@ export class SuggestionsModel implements ISuggestionsModel {
     { cellId?: string }
   >(this);
 
-  private _queue: IDict<PromiseDelegate<void>> = {};
+  /**
+   * Queue of promises used to wait for the update of the cell shared
+   * model in case of drag-and-drop cell.
+   */
+  private _promiseQueue: IDict<PromiseDelegate<void>> = {};
 }
 
 export namespace SuggestionsModel {

@@ -5,3 +5,4 @@ export * from './tokens';
 export * from './localSuggestionsManager';
 export * from './baseSuggestionsManager';
 export * from './registry';
+export * from './tools';
