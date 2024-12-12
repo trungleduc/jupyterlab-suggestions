@@ -191,6 +191,11 @@ export interface ISuggestionsModel extends IDisposable {
    */
   getCellIndex(cellId?: string): number;
 
+  /**
+   * Retrieves the current active cell
+   *
+   * @returns The cell instance, or -1 if the cell is not found.
+   */
   getActiveCell(): Cell<ICellModel> | null | undefined;
 }
 

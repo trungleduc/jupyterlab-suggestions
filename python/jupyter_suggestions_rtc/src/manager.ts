@@ -6,34 +6,21 @@ import {
 } from '@jupyter/docprovider';
 import {
   BaseSuggestionsManager,
+  cellModelFromYCell,
+  detectCellChangedEvent,
   IAllSuggestionData,
   IDict,
   ISuggestionData,
   ISuggestionsManager
 } from '@jupyter/suggestions-base';
-import {
-  ISharedCell,
-  ISharedCodeCell,
-  ISharedMarkdownCell,
-  ISharedRawCell,
-  NotebookChange,
-  YCellType,
-  YNotebook
-} from '@jupyter/ydoc';
-import {
-  Cell,
-  CellModel,
-  CodeCellModel,
-  ICellModel,
-  MarkdownCellModel,
-  RawCellModel
-} from '@jupyterlab/cells';
+import { NotebookChange, YCellType, YNotebook } from '@jupyter/ydoc';
+import { Cell, CellModel, ICellModel } from '@jupyterlab/cells';
 import { URLExt } from '@jupyterlab/coreutils';
 import { INotebookTracker, NotebookPanel } from '@jupyterlab/notebook';
-import { PromiseDelegate } from '@lumino/coreutils';
-import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
 import { User } from '@jupyterlab/services';
+import { PromiseDelegate } from '@lumino/coreutils';
 import { Signal } from '@lumino/signaling';
+import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
 
 const DOCUMENT_PROVIDER_URL = 'api/collaboration/room';
 
@@ -93,6 +80,9 @@ export class RtcSuggestionsManager
       for (const [forkRoomId, forkData] of Object.entries(allForks)) {
         const forkMeta = JSON.parse(forkData.description ?? '{}');
         const cellId = forkMeta.cellId;
+        if (!cellMap[cellId]) {
+          continue;
+        }
         const metadata = forkMeta.metadata;
         const cellModel = await this._cellModelFactory({
           rootDocId,
@@ -169,12 +159,7 @@ export class RtcSuggestionsManager
     try {
       await this._forkManager.deleteFork({ forkId: suggestionId, merge: true });
 
-      const ynb = this._allSharedNotebook.get(suggestionId);
-      if (ynb) {
-        Signal.clearData(ynb);
-        ynb.dispose();
-      }
-      this._allSharedNotebook.delete(suggestionId);
+      this._removeSharedNotebook(suggestionId);
       return true;
     } catch (e) {
       console.error(e);
@@ -189,12 +174,7 @@ export class RtcSuggestionsManager
   }): Promise<void> {
     const { suggestionId } = options;
     await this._forkManager.deleteFork({ forkId: suggestionId, merge: false });
-    const ynb = this._allSharedNotebook.get(suggestionId);
-    if (ynb) {
-      Signal.clearData(ynb);
-      ynb.dispose();
-    }
-    this._allSharedNotebook.delete(suggestionId);
+    this._removeSharedNotebook(suggestionId);
   }
 
   async updateSuggestion(options: {
@@ -207,6 +187,14 @@ export class RtcSuggestionsManager
     return;
   }
 
+  private _removeSharedNotebook(suggestionId: string) {
+    const ynb = this._allSharedNotebook.get(suggestionId);
+    if (ynb) {
+      Signal.clearData(ynb);
+      ynb.dispose();
+    }
+    this._allSharedNotebook.delete(suggestionId);
+  }
   private _handleForkDeleted(
     manager: IForkManager,
     changed: IForkChangedEvent
@@ -229,66 +217,47 @@ export class RtcSuggestionsManager
     }
   }
 
+  /**
+   * When a cell is moved in the root document, all forked documents are
+   * also updated, we need to listed for this event of all forked documents
+   * to be able to update the suggestion data with the newly created
+   * shared cell after the move operator.
+   *
+   */
   private async _handleForkNotebookChanged(
     notebook: YNotebook,
     changed: NotebookChange,
-    forkMeta: any,
-    forkRoomId: string
+    options: {
+      forkCellMimeType: string;
+      forkCellId: string;
+      forkRoomId: string;
+      notebookPath: string;
+    }
   ) {
-    const { cellsChange } = changed;
-    if (cellsChange) {
-      let haveDelete = false;
-      let haveInsert: ISharedCell[] | undefined;
-      for (const c of cellsChange) {
-        if (c.delete !== undefined) {
-          haveDelete = true;
-        }
-        if (c.insert !== undefined) {
-          haveInsert = c.insert;
-        }
-      }
+    const { forkCellMimeType, forkCellId, forkRoomId, notebookPath } = options;
+    const cellChangedEvent = detectCellChangedEvent(changed);
+    if (cellChangedEvent) {
+      const { event } = cellChangedEvent;
 
-      const cellMap: IDict<YCellType> = {};
-      [...(notebook.cells ?? [])].forEach(it => {
-        cellMap[it.id] = it;
-      });
-
-      if (haveInsert && haveDelete) {
-        // Cell moved
-        const movedCells = haveInsert;
+      if (event === 'moved') {
+        const movedCells = cellChangedEvent.movedCells ?? [];
+        const cellMap: IDict<YCellType> = {};
+        [...(notebook.cells ?? [])].forEach(it => {
+          cellMap[it.id] = it;
+        });
 
         for (const cell of movedCells) {
           const cellIdInFork = cell.id;
-          if (cellIdInFork === forkMeta.cellId) {
-            let copiedCellModel: CellModel | undefined;
-            switch (cell.cell_type) {
-              case 'code': {
-                copiedCellModel = new CodeCellModel({
-                  sharedModel: cell as ISharedCodeCell
-                });
-                copiedCellModel.mimeType = forkMeta.mimeType;
-                break;
-              }
-              case 'markdown': {
-                copiedCellModel = new MarkdownCellModel({
-                  sharedModel: cell as ISharedMarkdownCell
-                });
-                break;
-              }
-              case 'raw': {
-                copiedCellModel = new RawCellModel({
-                  sharedModel: cell as ISharedRawCell
-                });
-                break;
-              }
-              default:
-                break;
-            }
+          if (cellIdInFork === forkCellId) {
+            const copiedCellModel = cellModelFromYCell({
+              yCell: cell as YCellType,
+              mimeType: forkCellMimeType
+            });
             if (copiedCellModel) {
               this._suggestionChanged.emit({
                 operator: 'modified',
-                cellId: forkMeta.cellId,
-                notebookPath: forkMeta.path,
+                cellId: forkCellId,
+                notebookPath: notebookPath,
                 suggestionId: forkRoomId,
                 modifiedData: { cellModel: copiedCellModel }
               });
@@ -364,9 +333,17 @@ export class RtcSuggestionsManager
         collaborative: true
       }) as any as YNotebook;
       this._allSharedNotebook.set(forkRoomId, shared);
-      shared.changed.connect((sender, args) =>
-        this._handleForkNotebookChanged(sender, args, forkMeta, forkRoomId)
-      );
+      const handler = (sender: YNotebook, args: NotebookChange) =>
+        this._handleForkNotebookChanged(sender, args, {
+          forkCellMimeType: forkMeta.mimeType,
+          forkCellId: forkMeta.cellId,
+          forkRoomId,
+          notebookPath: forkMeta.path
+        });
+      shared.changed.connect(handler);
+      shared.disposed.connect(() => {
+        shared.changed.disconnect(handler);
+      });
       const _yWebsocketProvider = new YWebsocketProvider(
         this._serverUrl,
         forkRoomId,
@@ -384,30 +361,10 @@ export class RtcSuggestionsManager
           });
           if (selectedCell[0]) {
             const currentCell = selectedCell[0];
-            let copiedCellModel: CellModel | undefined;
-            switch (currentCell.cell_type) {
-              case 'code': {
-                copiedCellModel = new CodeCellModel({
-                  sharedModel: currentCell
-                });
-                copiedCellModel.mimeType = mimeType;
-                break;
-              }
-              case 'markdown': {
-                copiedCellModel = new MarkdownCellModel({
-                  sharedModel: currentCell
-                });
-                break;
-              }
-              case 'raw': {
-                copiedCellModel = new RawCellModel({
-                  sharedModel: currentCell
-                });
-                break;
-              }
-              default:
-                break;
-            }
+            const copiedCellModel = cellModelFromYCell({
+              yCell: currentCell,
+              mimeType
+            });
             if (copiedCellModel) {
               pd.resolve(copiedCellModel);
             } else {

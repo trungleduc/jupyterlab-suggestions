@@ -555,6 +555,7 @@ __metadata:
     "@jupyterlab/notebook": ^4.0.0
     "@jupyterlab/observables": ^4.0.0
     "@jupyterlab/rendermime": ^4.0.0
+    "@jupyterlab/services": ^7.0.0
     "@jupyterlab/ui-components": ^4.0.0
     "@lumino/coreutils": ^2.0.0
     "@lumino/disposable": ^2.0.0
@@ -624,11 +625,17 @@ __metadata:
     "@jupyter/collaborative-drive": ^3.1.0
     "@jupyter/docprovider": ^3.1.0
     "@jupyter/suggestions-base": ^0.1.0
+    "@jupyter/ydoc": ^3.0.0
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
+    "@jupyterlab/cells": ^4.0.0
+    "@jupyterlab/coreutils": ^6.0.0
     "@jupyterlab/notebook": ^4.0.0
+    "@jupyterlab/services": ^7.0.0
+    "@lumino/coreutils": ^2.0.0
     rimraf: ^3.0.2
     typescript: ^5
+    y-websocket: ^2.0.0
     yjs: ^13.5.0
   languageName: unknown
   linkType: soft
@@ -873,7 +880,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/coreutils@npm:^6.2.0, @jupyterlab/coreutils@npm:^6.3.3":
+"@jupyterlab/coreutils@npm:^6.0.0, @jupyterlab/coreutils@npm:^6.2.0, @jupyterlab/coreutils@npm:^6.3.3":
   version: 6.3.3
   resolution: "@jupyterlab/coreutils@npm:6.3.3"
   dependencies:
@@ -1133,7 +1140,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/services@npm:^7.2.0, @jupyterlab/services@npm:^7.3.3":
+"@jupyterlab/services@npm:^7.0.0, @jupyterlab/services@npm:^7.2.0, @jupyterlab/services@npm:^7.3.3":
   version: 7.3.3
   resolution: "@jupyterlab/services@npm:7.3.3"
   dependencies:
@@ -11091,6 +11098,29 @@ __metadata:
     y-websocket: bin/server.js
     y-websocket-server: bin/server.js
   checksum: 4ab3f99cf5f3b2bb3dd12603bc85e7fc338c64636b0d2b654af16662b5600bdfa6fcaaeb4258e02b9a0dc7d90441728dc07874cf5f7eeeb837c27df53e72670f
+  languageName: node
+  linkType: hard
+
+"y-websocket@npm:^2.0.0":
+  version: 2.0.4
+  resolution: "y-websocket@npm:2.0.4"
+  dependencies:
+    lib0: ^0.2.52
+    lodash.debounce: ^4.0.8
+    ws: ^6.2.1
+    y-leveldb: ^0.1.0
+    y-protocols: ^1.0.5
+  peerDependencies:
+    yjs: ^13.5.6
+  dependenciesMeta:
+    ws:
+      optional: true
+    y-leveldb:
+      optional: true
+  bin:
+    y-websocket: bin/server.cjs
+    y-websocket-server: bin/server.cjs
+  checksum: ad578c93cb360034abbf91c305e22bed2400e45c0dba42d7969e6ceeae93966879fe95293d3ef98b33b97cd31aa5042ba1103308e307aa22002077f56e4a4384
   languageName: node
   linkType: hard
 
