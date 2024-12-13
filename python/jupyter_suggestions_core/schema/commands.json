@@ -8,6 +8,9 @@
       {
         "name": "jupyter-suggestions-core:add-cell-suggestion",
         "command": "jupyter-suggestions-core:add-cell-suggestion"
+      },
+      {
+        "name": "jupyter-suggestions-core:cell-suggestion-menu"
       }
     ]
   }

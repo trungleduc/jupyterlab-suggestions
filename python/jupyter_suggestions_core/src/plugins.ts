@@ -1,4 +1,5 @@
 import {
+  CellToolbarMenu,
   hintIcon,
   ISuggestionsManagerRegistry,
   ISuggestionsManagerRegistryToken,
@@ -14,6 +15,8 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
+import { IToolbarWidgetRegistry } from '@jupyterlab/apputils';
+import { Cell } from '@jupyterlab/cells';
 import { INotebookTracker } from '@jupyterlab/notebook';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
@@ -21,7 +24,9 @@ import {
   IFormRenderer,
   IFormRendererRegistry
 } from '@jupyterlab/ui-components';
+
 import { SuggestionsSettingComponent } from './settingrenderer';
+
 import type { FieldProps } from '@rjsf/utils';
 
 const NAME_SPACE = '@jupyter/suggestions-core';
@@ -223,3 +228,31 @@ export const registryPlugin: JupyterFrontEndPlugin<ISuggestionsManagerRegistry> 
       return registryManager;
     }
   };
+
+export const cellToolbarPlugin: JupyterFrontEndPlugin<void> = {
+  id: `${NAME_SPACE}:cell-toolbar`,
+  description: 'A JupyterLab extension for suggesting changes.',
+  autoStart: true,
+  requires: [INotebookTracker, ISuggestionsModelToken],
+  optional: [ITranslator, IToolbarWidgetRegistry],
+  activate: (
+    app: JupyterFrontEnd,
+    tracker: INotebookTracker,
+    model: ISuggestionsModel,
+    translator_: ITranslator | null,
+    toolbarRegistry: IToolbarWidgetRegistry | null
+  ) => {
+    console.log(`${NAME_SPACE}:cell-toolbar is activated`);
+    // const { commands } = app;
+    if (toolbarRegistry) {
+      toolbarRegistry.addFactory<Cell>(
+        'Cell',
+        'jupyter-suggestions-core:cell-suggestion-menu',
+        cell => {
+          const w = new CellToolbarMenu({ cell });
+          return w;
+        }
+      );
+    }
+  }
+};
