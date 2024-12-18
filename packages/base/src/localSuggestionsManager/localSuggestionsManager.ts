@@ -15,12 +15,15 @@ import {
   IAllSuggestionData,
   IDict,
   ISuggestionData,
+  ISuggestionMetadata,
   ISuggestionsManager
 } from '../types';
+import { User } from '@jupyterlab/services';
 
 export interface ISerializedSuggessionData {
   originalCellId: string;
   newSource: string;
+  metadata: ISuggestionMetadata;
 }
 
 const METADATA_KEY = 'jupyter_suggestion';
@@ -40,10 +43,10 @@ export class LocalSuggestionsManager
 
   async getAllSuggestions(
     notebook: NotebookPanel
-  ): Promise<IAllSuggestionData | undefined> {
+  ): Promise<IAllSuggestionData> {
     const path = notebook.context.localPath;
     if (this._suggestionsMap.has(path)) {
-      return this._suggestionsMap.get(path);
+      return this._suggestionsMap.get(path) ?? new Map();
     } else {
       const savedSuggestions: IDict<IDict<ISerializedSuggessionData>> =
         notebook.context.model.getMetadata(METADATA_KEY);
@@ -70,6 +73,8 @@ export class LocalSuggestionsManager
         );
         this._suggestionsMap.set(path, currentSuggestion);
         return currentSuggestion;
+      } else {
+        return new Map();
       }
     }
   }
@@ -90,8 +95,9 @@ export class LocalSuggestionsManager
   async addSuggestion(options: {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
+    author?: User.IIdentity | null;
   }): Promise<string> {
-    const { notebook, cell } = options;
+    const { notebook, cell, author } = options;
     const path = notebook.context.localPath;
     if (!this._suggestionsMap.has(path)) {
       this._suggestionsMap.set(path, new Map());
@@ -105,7 +111,8 @@ export class LocalSuggestionsManager
     const suggestionId = UUID.uuid4();
     const suggestionContent: ISuggestionData = {
       originalCellId: cellId,
-      cellModel: this._cloneCellModel(cell.model)
+      cellModel: this._cloneCellModel(cell.model),
+      metadata: { author }
     };
     cellSuggesions[suggestionId] = suggestionContent;
     await this._saveSuggestionToMetadata({
@@ -216,7 +223,8 @@ export class LocalSuggestionsManager
       notebook.context.model.getMetadata(METADATA_KEY) ?? {};
     const serializedData: ISerializedSuggessionData = {
       originalCellId: suggestionContent.originalCellId,
-      newSource: suggestionContent.cellModel.sharedModel.getSource()
+      newSource: suggestionContent.cellModel.sharedModel.getSource(),
+      metadata: suggestionContent.metadata
     };
     const newData = {
       ...currentSuggestions,
@@ -226,7 +234,13 @@ export class LocalSuggestionsManager
       }
     };
     notebook.context.model.setMetadata(METADATA_KEY, newData);
-    await notebook.context.save();
+    await this._saveNotebook(notebook);
+  }
+
+  private async _saveNotebook(notebook: NotebookPanel) {
+    if (notebook.content.model && !notebook.content.model.collaborative) {
+      await notebook.context.save();
+    }
   }
 
   private async _removeSuggestionFromMetadata(options: {
@@ -247,7 +261,7 @@ export class LocalSuggestionsManager
       delete currentSuggestions[cellId];
     }
     notebook.context.model.setMetadata(METADATA_KEY, currentSuggestions);
-    await notebook.context.save();
+    await this._saveNotebook(notebook);
   }
 
   private async _updateSuggestionInMetadata(options: {
@@ -271,7 +285,7 @@ export class LocalSuggestionsManager
     currentSuggestions[cellId][suggestionId].newSource = newSource;
 
     notebook.context.model.setMetadata(METADATA_KEY, currentSuggestions);
-    await notebook.context.save();
+    await this._saveNotebook(notebook);
   }
 
   private _cloneCellModel(
@@ -311,12 +325,13 @@ export class LocalSuggestionsManager
     serializedData: ISerializedSuggessionData,
     cellMap: IDict<ICellModel>
   ): ISuggestionData {
-    const { originalCellId, newSource } = serializedData;
+    const { originalCellId, newSource, metadata } = serializedData;
     const originalCellModel = cellMap[serializedData.originalCellId];
     const newCellModel = this._cloneCellModel(originalCellModel, newSource);
     return {
       originalCellId,
-      cellModel: newCellModel
+      cellModel: newCellModel,
+      metadata
     };
   }
 }

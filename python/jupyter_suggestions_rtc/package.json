@@ -47,8 +47,14 @@
     "@jupyter/collaborative-drive": "^3.1.0",
     "@jupyter/docprovider": "^3.1.0",
     "@jupyter/suggestions-base": "^0.1.0",
+    "@jupyter/ydoc": "^3.0.0",
     "@jupyterlab/application": "^4.0.0",
-    "@jupyterlab/notebook": "^4.0.0"
+    "@jupyterlab/cells": "^4.0.0",
+    "@jupyterlab/coreutils": "^6.0.0",
+    "@jupyterlab/notebook": "^4.0.0",
+    "@jupyterlab/services": "^7.0.0",
+    "@lumino/coreutils": "^2.0.0",
+    "y-websocket": "^2.0.0"
   },
   "devDependencies": {
     "@jupyterlab/builder": "^4.0.0",
