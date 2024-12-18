@@ -13,9 +13,10 @@ import {
   ISuggestionData,
   ISuggestionsManager,
   ISuggestionsModel,
-  ISuggestionViewData
+  ISuggestionViewData,
+  SuggestionType
 } from '../types';
-import { detectCellChangedEvent, getCellMap } from '../tools';
+import { cloneCellModel, detectCellChangedEvent, getCellMap } from '../tools';
 
 export class SuggestionsModel implements ISuggestionsModel {
   constructor(options: SuggestionsModel.IOptions) {
@@ -65,13 +66,14 @@ export class SuggestionsModel implements ISuggestionsModel {
   getSuggestionManagerName(): string {
     return this._suggestionsManager?.name ?? '';
   }
-  async addSuggestion(): Promise<void> {
+  async addSuggestion(options: { type: SuggestionType }): Promise<void> {
     const activeCell = this._notebookPanel?.content.activeCell;
     if (activeCell && this._notebookPanel && this._suggestionsManager) {
       await this._suggestionsManager.addSuggestion({
         notebook: this._notebookPanel,
         cell: activeCell,
-        author: this._userManager.identity
+        author: this._userManager.identity,
+        type: options.type
       });
     }
   }
@@ -101,11 +103,18 @@ export class SuggestionsModel implements ISuggestionsModel {
   }): Promise<boolean> {
     const { cellId, suggestionId } = options;
     if (cellId && this._notebookPanel && this._suggestionsManager) {
-      return await this._suggestionsManager.acceptSuggestion({
+      const accepted = await this._suggestionsManager.acceptSuggestion({
         notebook: this._notebookPanel,
         cellId,
         suggestionId
       });
+      if (accepted) {
+        if (this._allSuggestions && this._allSuggestions.has(cellId)) {
+          const cellSuggestions = this._allSuggestions.get(cellId)!;
+          delete cellSuggestions[suggestionId];
+        }
+      }
+      return accepted;
     }
     return false;
   }
@@ -153,6 +162,23 @@ export class SuggestionsModel implements ISuggestionsModel {
       }
     }
     return cellSuggestions[suggestionId];
+  }
+
+  getCellSuggestions(options: {
+    cellId: string;
+  }): IDict<ISuggestionViewData> | undefined {
+    if (!this._filePath || !this._suggestionsManager) {
+      return;
+    }
+    const { cellId } = options;
+    let cellSuggestions: IDict<ISuggestionViewData> | undefined = undefined;
+    if (!this._allSuggestions?.has(cellId)) {
+      cellSuggestions = {};
+      this._allSuggestions?.set(cellId, cellSuggestions);
+    } else {
+      cellSuggestions = this._allSuggestions.get(cellId)!;
+    }
+    return cellSuggestions;
   }
 
   getActiveCell(): Cell<ICellModel> | null | undefined {
@@ -218,20 +244,42 @@ export class SuggestionsModel implements ISuggestionsModel {
     }
   }
 
+  nativateToCell(cellId?: string): void {
+    if (cellId && this._notebookPanel) {
+      const index = this.getCellIndex(cellId);
+      if (index !== -1) {
+        const target = this._notebookPanel.content._findCellById(cellId);
+        if (target) {
+          this._notebookPanel.content.activeCellIndex = index;
+          this._notebookPanel.content.scrollToCell(target.cell);
+        }
+      }
+    }
+  }
+
   private _convertSuggestionFromManager(
     source?: ISuggestionData
   ): ISuggestionViewData | undefined {
     if (!source || !this._notebookPanel) {
       return;
     }
-    const { originalCellId, metadata, cellModel } = source;
+    const { originalCellId, metadata, cellModel, type } = source;
     const cells = this._notebookPanel.context.model.cells;
     for (const it of cells) {
       if (it.id === originalCellId) {
+        let newCellModel: ICellModel;
+        if (type === SuggestionType.delete || cellModel === null) {
+          // if `cellModel` is null, it's a cell deletion suggestion,
+          // we just use the origianl model to render the suggestion widget
+          newCellModel = cloneCellModel(it);
+        } else {
+          newCellModel = cellModel;
+        }
         return {
-          cellModel,
+          cellModel: newCellModel,
           originalCellModel: it,
-          metadata
+          metadata,
+          type
         };
       }
     }
@@ -374,6 +422,13 @@ export class SuggestionsModel implements ISuggestionsModel {
         const pd = this._promiseQueue[cellId];
         pd.resolve();
       } else {
+        if (changed.operator === 'deleted') {
+          const { cellId, suggestionId } = changed;
+          if (this._allSuggestions?.has(cellId)) {
+            const cellSuggestions = this._allSuggestions.get(cellId)!;
+            delete cellSuggestions[suggestionId];
+          }
+        }
         this._suggestionChanged.emit(newChanged);
       }
     }

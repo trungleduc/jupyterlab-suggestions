@@ -3,6 +3,7 @@ import hintStr from '../style/icon/hint.svg';
 import minimizeStr from '../style/icon/minimize.svg';
 import expandStr from '../style/icon/expand.svg';
 import collapseStr from '../style/icon/collapse.svg';
+import locationStr from '../style/icon/location.svg';
 
 export const hintIcon = new LabIcon({
   name: 'jupyter-suggestions:hintIcon',
@@ -19,4 +20,9 @@ export const expandIcon = new LabIcon({
 export const collapseIcon = new LabIcon({
   name: 'jupyter-suggestions:collapseIcon',
   svgstr: collapseStr
+});
+
+export const locationIcon = new LabIcon({
+  name: 'jupyter-suggestions:locationIcon',
+  svgstr: locationStr
 });

@@ -1,17 +1,23 @@
+import { ISharedCell } from '@jupyter/ydoc';
+import { Dialog, showDialog } from '@jupyterlab/apputils';
 import { PanelWithToolbar } from '@jupyterlab/ui-components';
+import { Debouncer } from '@lumino/polling';
 import { Panel, Widget } from '@lumino/widgets';
 
 import {
   IDict,
   ISuggestionChange,
+  ISuggestionsModel,
   ISuggestionViewData,
-  ISuggestionsModel
+  SuggestionType
 } from '../types';
-import { CellWidget, suggestionCellSelectedStyle } from './suggestionWidget';
 import { suggestionsWidgetAreaStyle } from './style';
-import { Dialog, showDialog } from '@jupyterlab/apputils';
-import { ISharedCell } from '@jupyter/ydoc';
-import { Debouncer } from '@lumino/polling';
+import {
+  BaseCellwidget,
+  SuggestChangeCellWidget,
+  SuggestDeleteCellWidget,
+  suggestionCellSelectedStyle
+} from './suggestionWidget';
 
 export class SuggestionsWidget extends PanelWithToolbar {
   constructor(options: SuggestionsWidget.IOptions) {
@@ -55,28 +61,53 @@ export class SuggestionsWidget extends PanelWithToolbar {
             suggestionData: suggestion
           });
           const cellIdx = this._model.getCellIndex(cellId);
-          let cellSuggestionPanel = this._cellSuggestionsPanel.get(cellId);
-          if (!cellSuggestionPanel) {
-            cellSuggestionPanel = new Panel();
-            this._cellSuggestionsPanel.set(cellId, cellSuggestionPanel);
-            this._suggestionsArea.insertWidget(cellIdx, cellSuggestionPanel);
+          let cellSuggestionPanelData = this._cellSuggestionsPanel.get(cellId);
+
+          if (!cellSuggestionPanelData) {
+            const cellSuggestionPanel = new Panel();
+            cellSuggestionPanelData = {
+              panel: cellSuggestionPanel,
+              cellIndex: cellIdx
+            };
+            this._cellSuggestionsPanel.set(cellId, cellSuggestionPanelData);
+            let elementBefore: Widget | undefined = undefined;
+            const allIndex = [...this._cellSuggestionsPanel.values()].sort(
+              (a, b) => a.cellIndex - b.cellIndex
+            );
+            for (const element of allIndex) {
+              if (element.cellIndex < cellIdx) {
+                elementBefore = element.panel;
+              } else {
+                break;
+              }
+            }
+            let indexToInsert = 0;
+            if (elementBefore) {
+              indexToInsert =
+                this._suggestionsArea.widgets.indexOf(elementBefore) + 1;
+            }
+            this._suggestionsArea.insertWidget(
+              indexToInsert,
+              cellSuggestionPanel
+            );
           }
-          cellSuggestionPanel.addWidget(widget);
+          cellSuggestionPanelData.panel.addWidget(widget);
 
           this._highlightCellSuggestions(cellId);
         }
         break;
       }
       case 'deleted': {
-        const cellSuggestionsPanel = this._cellSuggestionsPanel.get(cellId);
-        if (!cellSuggestionsPanel) {
+        const cellSuggestionsData = this._cellSuggestionsPanel.get(cellId);
+        if (!cellSuggestionsData) {
           break;
         }
-        const allWidgets = [...cellSuggestionsPanel.widgets];
+        const allWidgets = [...cellSuggestionsData.panel.widgets];
         for (const element of allWidgets) {
           if (element.id === suggestionId) {
             element.dispose();
             element.parent = null;
+
             break;
           }
         }
@@ -102,48 +133,55 @@ export class SuggestionsWidget extends PanelWithToolbar {
   }
   private _highlightCellSuggestions(cellId: string): void {
     this._cellSuggestionsPanel.forEach((p, k) => {
+      const { panel } = p;
       if (k === cellId) {
-        p.addClass(suggestionCellSelectedStyle);
+        panel.addClass(suggestionCellSelectedStyle);
         let lastElement: Widget | undefined = undefined;
-        for (const element of p.widgets) {
-          (element as CellWidget).toggleMinimized(false);
+        for (const element of panel.widgets) {
+          (element as BaseCellwidget).toggleMinimized(false);
           lastElement = element;
         }
-        this._scrollToWidget(lastElement);
+        this._scrollToWidget(panel, lastElement);
       } else {
-        p.removeClass(suggestionCellSelectedStyle);
+        panel.removeClass(suggestionCellSelectedStyle);
       }
     });
   }
-  private _scrollToWidget(w?: Widget) {
-    if (!w) {
+  private _scrollToWidget(parent?: Widget, w?: Widget) {
+    if (!parent || !w) {
       return;
     }
-    const topPos = w.node.offsetTop;
-    this._suggestionsArea.node.scrollTop = topPos;
+    const parentToTop = parent.node.offsetTop;
+
+    const childToParent = w.node.offsetTop;
+    this._suggestionsArea.node.scrollTop = parentToTop + childToParent;
   }
 
   private _renderSuggestions() {
     const allSuggestions = this._model.allSuggestions;
 
-    this._cellSuggestionsPanel.forEach(p => {
-      const allWidgets = [...p.widgets];
+    this._cellSuggestionsPanel.forEach(it => {
+      const { panel } = it;
+      const allWidgets = [...panel.widgets];
       for (const element of allWidgets) {
-        p.layout?.removeWidget(element);
+        panel.layout?.removeWidget(element);
         element.dispose();
         element.parent = null;
       }
-      p.dispose();
-      p.parent = null;
-      this._suggestionsArea.layout?.removeWidget(p);
+      panel.dispose();
+      panel.parent = null;
+      this._suggestionsArea.layout?.removeWidget(panel);
     });
     this._cellSuggestionsPanel.clear();
     if (allSuggestions) {
       const suggestionPanelByIndex: IDict<Panel> = {};
       for (const [cellId, val] of allSuggestions.entries()) {
         const cellSuggestionPanel = new Panel();
-        this._cellSuggestionsPanel.set(cellId, cellSuggestionPanel);
         const cellIdx = this._model.getCellIndex(cellId);
+        this._cellSuggestionsPanel.set(cellId, {
+          panel: cellSuggestionPanel,
+          cellIndex: cellIdx
+        });
         suggestionPanelByIndex[cellIdx] = cellSuggestionPanel;
         Object.entries(val).forEach(([suggestionId, suggestionData]) => {
           const { widget } = this._widgetFactory({
@@ -174,7 +212,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
   private _updatePanelTitle(): void {
     let count = 0;
     this._cellSuggestionsPanel.forEach(it => {
-      count += it.widgets.length;
+      count += it.panel.widgets.length;
     });
     if (count !== 0) {
       this.title.label = `All Suggestions (${count})`;
@@ -186,7 +224,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
   private _widgetFactory(options: {
     suggestionId: string;
     suggestionData: ISuggestionViewData;
-  }): { widget: CellWidget } {
+  }): { widget: BaseCellwidget } {
     const { suggestionId, suggestionData } = options;
     const cellId = suggestionData.originalCellModel.id as string | undefined;
     const deleteCallback = async () => {
@@ -235,10 +273,25 @@ export class SuggestionsWidget extends PanelWithToolbar {
         }
       }
     };
-    const w = new CellWidget({
+    const navigateCallback = async () => {
+      this._model.nativateToCell(cellId);
+    };
+    let Cls: typeof BaseCellwidget = BaseCellwidget;
+    switch (suggestionData.type) {
+      case SuggestionType.change:
+        Cls = SuggestChangeCellWidget;
+        break;
+      case SuggestionType.delete:
+        Cls = SuggestDeleteCellWidget;
+        break;
+      default:
+        break;
+    }
+    const w = new Cls({
       suggestionData,
       deleteCallback,
       acceptCallback,
+      navigateCallback,
       liveUpdate: this._model.sourceLiveUpdate
     });
 
@@ -247,7 +300,10 @@ export class SuggestionsWidget extends PanelWithToolbar {
   }
 
   private _suggestionsArea = new Panel();
-  private _cellSuggestionsPanel = new Map<string, Panel>();
+  private _cellSuggestionsPanel = new Map<
+    string,
+    { panel: Panel; cellIndex: number }
+  >();
   private _model: ISuggestionsModel;
 }
 

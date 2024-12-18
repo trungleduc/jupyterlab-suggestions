@@ -27,17 +27,16 @@ import { Signal } from '@lumino/signaling';
 import { Panel } from '@lumino/widgets';
 
 import { ISuggestionViewData } from '../../types';
-import { diffTextExtensionFactory } from '../cmExtension';
 import { suggestionCellStyle } from './style';
 import { SuggestionToolbar } from './suggestionToolbar';
 
-export class CellWidget extends Panel {
-  constructor(options: CellWidget.IOptions) {
+export class BaseCellwidget extends Panel {
+  constructor(options: BaseCellwidget.IOptions) {
     super(options);
     const { suggestionData, liveUpdate } = options;
     const { originalCellModel, cellModel } = suggestionData;
     this.addClass(suggestionCellStyle);
-    this._cellId = cellModel.id as string | undefined;
+    this._cellId = cellModel?.id as string | undefined;
     const cellWidget = this._createCell(
       originalCellModel,
       cellModel,
@@ -50,6 +49,7 @@ export class CellWidget extends Panel {
         toggleMinimized: this.toggleMinimized.bind(this),
         deleteCallback: options.deleteCallback,
         acceptCallback: options.acceptCallback,
+        navigateCallback: options.navigateCallback,
         state: this._state,
         metadata: suggestionData.metadata
       });
@@ -77,7 +77,7 @@ export class CellWidget extends Panel {
     }
   }
 
-  private _cmExtensioRegistry(
+  protected _cmExtensioRegistry(
     originalCell: ICellModel,
     liveUpdate: boolean
   ): EditorExtensionRegistry {
@@ -103,18 +103,10 @@ export class CellWidget extends Panel {
         );
       }
     });
-    registry.addExtension({
-      name: 'suggestion-view',
-      factory: options => {
-        return EditorExtensionRegistry.createImmutableExtension([
-          diffTextExtensionFactory({ originalCell, liveUpdate })
-        ]);
-      }
-    });
     return registry;
   }
 
-  private _cmLanguageRegistry(): EditorLanguageRegistry {
+  protected _cmLanguageRegistry(): EditorLanguageRegistry {
     const languages = new EditorLanguageRegistry();
     EditorLanguageRegistry.getDefaultLanguages()
       .filter(language =>
@@ -136,7 +128,7 @@ export class CellWidget extends Panel {
     });
     return languages;
   }
-  private _createCell(
+  protected _createCell(
     originalCell: ICellModel,
     cellModel: ICellModel,
     liveUpdate: boolean
@@ -201,11 +193,12 @@ export class CellWidget extends Panel {
   private _cellWidget: CodeCell | MarkdownCell | RawCell | undefined;
 }
 
-export namespace CellWidget {
+export namespace BaseCellwidget {
   export interface IOptions extends Panel.IOptions {
     suggestionData: ISuggestionViewData;
     deleteCallback: () => Promise<void>;
     acceptCallback: () => Promise<void>;
+    navigateCallback: () => Promise<void>;
     liveUpdate: boolean;
   }
 }

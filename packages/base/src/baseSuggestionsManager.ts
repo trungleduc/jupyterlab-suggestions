@@ -6,7 +6,8 @@ import {
   IAllSuggestionData,
   ISuggestionChange,
   ISuggestionData,
-  ISuggestionsManager
+  ISuggestionsManager,
+  SuggestionType
 } from './types';
 import { User } from '@jupyterlab/services';
 
@@ -56,6 +57,7 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
     author?: User.IIdentity | null;
+    type: SuggestionType;
   }): Promise<string>;
 
   abstract acceptSuggestion(options: {
@@ -77,8 +79,6 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
     newSource: string;
   }): Promise<void>;
 
-  protected _suggestionsMap = new Map<string, IAllSuggestionData>();
-
   protected _notebookAdded(tracker: INotebookTracker, panel: NotebookPanel) {
     panel.disposed.connect(p => {
       const localPath = p.context.localPath;
@@ -87,6 +87,8 @@ export abstract class BaseSuggestionsManager implements ISuggestionsManager {
       }
     });
   }
+
+  protected _suggestionsMap = new Map<string, IAllSuggestionData>();
 
   protected _suggestionChanged = new Signal<
     ISuggestionsManager,
