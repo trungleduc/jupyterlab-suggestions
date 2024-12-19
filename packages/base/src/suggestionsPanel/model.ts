@@ -271,7 +271,7 @@ export class SuggestionsModel implements ISuggestionsModel {
         if (type === SuggestionType.delete || cellModel === null) {
           // if `cellModel` is null, it's a cell deletion suggestion,
           // we just use the origianl model to render the suggestion widget
-          newCellModel = cloneCellModel(it);
+          newCellModel = cloneCellModel(it)!;
         } else {
           newCellModel = cellModel;
         }
@@ -351,8 +351,11 @@ export class SuggestionsModel implements ISuggestionsModel {
           el => !cellInNotebook.has(el)
         );
         for (const removed of removedElements) {
-          const suggestions = this._allSuggestions?.get(removed) ?? {};
-          for (const suggestionId in suggestions) {
+          const suggestions = Object.keys(
+            this._allSuggestions?.get(removed) ?? {}
+          );
+
+          for (const suggestionId of suggestions) {
             await this.deleteSuggestion({ cellId: removed, suggestionId });
           }
         }

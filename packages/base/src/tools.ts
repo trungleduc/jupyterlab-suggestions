@@ -207,9 +207,12 @@ export async function deleteCellById(options: {
 }
 
 export function cloneCellModel(
-  cellModel: ICellModel,
+  cellModel?: ICellModel,
   newSource?: string
-): ICellModel {
+): ICellModel | undefined {
+  if (!cellModel) {
+    return;
+  }
   let copiedCellModel: CellModel | undefined;
   const mimeType = cellModel.mimeType;
   switch (cellModel.type) {

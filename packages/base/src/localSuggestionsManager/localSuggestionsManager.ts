@@ -58,10 +58,13 @@ export class LocalSuggestionsManager
             const data: IDict<ISuggestionData> = {};
             Object.entries(serializedCellSuggestions).forEach(
               ([id, serializedData]) => {
-                data[id] = this._deserializedSuggestion(
+                const newCellModel = this._deserializedSuggestion(
                   serializedData,
                   cellMap
                 );
+                if (newCellModel) {
+                  data[id] = newCellModel;
+                }
               }
             );
             currentSuggestion.set(cellID, data);
@@ -112,7 +115,7 @@ export class LocalSuggestionsManager
 
         const suggestionContent: ISuggestionData = {
           originalCellId: cellId,
-          cellModel: cloneCellModel(cell.model),
+          cellModel: cloneCellModel(cell.model)!,
           metadata: { author },
           type: options.type
         };
@@ -320,10 +323,13 @@ export class LocalSuggestionsManager
   private _deserializedSuggestion(
     serializedData: ISerializedSuggessionData,
     cellMap: IDict<ICellModel>
-  ): ISuggestionData {
+  ): ISuggestionData | undefined {
     const { originalCellId, newSource, metadata, type } = serializedData;
     const originalCellModel = cellMap[serializedData.originalCellId];
     const newCellModel = cloneCellModel(originalCellModel, newSource);
+    if (!newCellModel) {
+      return;
+    }
     return {
       originalCellId,
       cellModel: newCellModel,
