@@ -1,4 +1,9 @@
-import { ISharedCell, NotebookChange, YCellType } from '@jupyter/ydoc';
+import {
+  ISharedCell,
+  NotebookChange,
+  YCellType,
+  YNotebook
+} from '@jupyter/ydoc';
 import {
   CellModel,
   CodeCellModel,
@@ -6,9 +11,21 @@ import {
   MarkdownCellModel,
   RawCellModel
 } from '@jupyterlab/cells';
-import { NotebookPanel } from '@jupyterlab/notebook';
+import { Notebook, NotebookPanel } from '@jupyterlab/notebook';
 
 import { IDict } from './types';
+import { PromiseDelegate } from '@lumino/coreutils';
+
+export const COMMAND_IDS = {
+  /**
+   * Command to add a cell suggestion.
+   */
+  addCellSuggestion: 'jupyter-suggestions-core:add-cell-suggestion',
+  /**
+   * Command to add a cell deletion suggestion.
+   */
+  addDeleteCellSuggestion: 'jupyter-suggestions-core:add-delete-cell-suggestion'
+};
 
 /**
  * Generates a mapping of cell IDs to cell models for a given notebook.
@@ -39,6 +56,7 @@ export function detectCellChangedEvent(changed: NotebookChange):
   | {
       event: 'deleted' | 'moved';
       movedCells?: ISharedCell[];
+      deletedIdx?: number;
     }
   | undefined {
   const { cellsChange } = changed;
@@ -47,22 +65,26 @@ export function detectCellChangedEvent(changed: NotebookChange):
     let haveDelete = false;
     let haveInsert: ISharedCell[] | undefined;
     let haveRetain = false;
+    let retainIndex = 0;
+    let deleteIndex = 0;
     for (const c of cellsChange) {
       if (c.delete !== undefined) {
         haveDelete = true;
+        deleteIndex = c.delete;
       }
       if (c.insert !== undefined) {
         haveInsert = c.insert;
       }
       if (c.retain !== undefined) {
         haveRetain = true;
+        retainIndex = c.retain;
       }
     }
     if (haveDelete) {
       if (haveRetain && haveInsert) {
         return { event: 'moved', movedCells: haveInsert };
       }
-      return { event: 'deleted' };
+      return { event: 'deleted', deletedIdx: retainIndex + deleteIndex - 1 };
     }
   }
   return;
@@ -109,5 +131,110 @@ export function cellModelFromYCell(options: {
     default:
       break;
   }
+  return copiedCellModel;
+}
+
+/**
+ * Delete a cell in the shared notebook by id
+ *
+ * @param {{
+ *   currentNotebook: Notebook;
+ *   sharedModel: ISharedDocument;
+ * }} options
+ */
+export async function deleteCellById(options: {
+  cellId: string;
+  sharedModel?: YNotebook;
+  defaultCell?: string;
+  currentNotebook?: Notebook;
+}): Promise<boolean> {
+  const { cellId, defaultCell, currentNotebook } = options;
+  let sharedModel = options.sharedModel;
+
+  const pd = new PromiseDelegate<boolean>();
+  if (currentNotebook) {
+    sharedModel = currentNotebook.model?.sharedModel as YNotebook;
+  }
+  if (sharedModel) {
+    let cellIndex = -1;
+    const allCells = sharedModel.cells;
+    for (let index = 0; index < allCells.length; index++) {
+      const element = allCells[index];
+      if (element.getId() === cellId) {
+        cellIndex = index;
+        break;
+      }
+    }
+
+    if (cellIndex !== -1) {
+      const handler = (nb: YNotebook, changed: NotebookChange) => {
+        const cellChangedEvent = detectCellChangedEvent(changed);
+        if (cellChangedEvent?.event === 'deleted') {
+          const deletedIndex = cellChangedEvent.deletedIdx;
+          if (deletedIndex === cellIndex) {
+            pd.resolve(true);
+            sharedModel.changed.disconnect(handler);
+          }
+        }
+      };
+      sharedModel.changed.connect(handler);
+      sharedModel.transact(() => {
+        sharedModel.deleteCell(cellIndex);
+        // Add a new cell if the notebook is empty. This is done
+        // within the compound operation to make the deletion of
+        // a notebook's last cell undoable.
+        if (sharedModel.cells.length === 1) {
+          sharedModel.insertCell(0, {
+            cell_type: defaultCell ?? 'code',
+            metadata:
+              defaultCell === 'code'
+                ? {
+                    trusted: true
+                  }
+                : {}
+          });
+        }
+        if (currentNotebook) {
+          currentNotebook.activeCellIndex = cellIndex;
+        }
+      });
+      currentNotebook?.deselectAll();
+    }
+  } else {
+    pd.resolve(false);
+  }
+  return pd.promise;
+}
+
+export function cloneCellModel(
+  cellModel: ICellModel,
+  newSource?: string
+): ICellModel {
+  let copiedCellModel: CellModel | undefined;
+  const mimeType = cellModel.mimeType;
+  switch (cellModel.type) {
+    case 'code': {
+      copiedCellModel = new CodeCellModel();
+      break;
+    }
+    case 'markdown': {
+      copiedCellModel = new MarkdownCellModel();
+      break;
+    }
+    case 'raw': {
+      copiedCellModel = new RawCellModel();
+      break;
+    }
+    default:
+      break;
+  }
+
+  if (!copiedCellModel) {
+    throw new Error('Invalid cell type');
+  }
+  copiedCellModel.mimeType = mimeType;
+  copiedCellModel.sharedModel.setSource(
+    newSource ?? cellModel.sharedModel.getSource()
+  );
   return copiedCellModel;
 }

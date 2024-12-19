@@ -1,4 +1,6 @@
 import {
+  CellToolbarMenu,
+  COMMAND_IDS,
   hintIcon,
   ISuggestionsManagerRegistry,
   ISuggestionsManagerRegistryToken,
@@ -7,13 +9,16 @@ import {
   LocalSuggestionsManager,
   SuggestionsManagerRegistry,
   SuggestionsModel,
-  SuggestionsPanelWidget
+  SuggestionsPanelWidget,
+  SuggestionType
 } from '@jupyter/suggestions-base';
 import {
   ILayoutRestorer,
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
+import { IToolbarWidgetRegistry } from '@jupyterlab/apputils';
+import { Cell } from '@jupyterlab/cells';
 import { INotebookTracker } from '@jupyterlab/notebook';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator, nullTranslator } from '@jupyterlab/translation';
@@ -21,7 +26,9 @@ import {
   IFormRenderer,
   IFormRendererRegistry
 } from '@jupyterlab/ui-components';
+
 import { SuggestionsSettingComponent } from './settingrenderer';
+
 import type { FieldProps } from '@rjsf/utils';
 
 const NAME_SPACE = '@jupyter/suggestions-core';
@@ -62,13 +69,6 @@ export const suggestionsModelPlugin: JupyterFrontEndPlugin<ISuggestionsModel> =
     }
   };
 
-export const COMMAND_IDS = {
-  /**
-   * Command to add a cell suggestion.
-   */
-  addCellSuggestion: 'jupyter-suggestions-core:add-cell-suggestion'
-};
-
 export const commandsPlugin: JupyterFrontEndPlugin<void> = {
   id: `${NAME_SPACE}:commands`,
   description: 'A JupyterLab extension for suggesting changes.',
@@ -86,22 +86,35 @@ export const commandsPlugin: JupyterFrontEndPlugin<void> = {
     const translator = translator_ ?? nullTranslator;
     const trans = translator.load('jupyterlab');
     commands.addCommand(COMMAND_IDS.addCellSuggestion, {
-      icon: hintIcon,
       caption: trans.__('Add suggestion'),
       execute: async () => {
         const current = tracker.currentWidget;
         if (current !== model.currentNotebookPanel) {
           await model.switchNotebook(current);
         }
-        await model.addSuggestion();
+        await model.addSuggestion({ type: SuggestionType.change });
+      },
+      isVisible: () => true
+    });
+
+    commands.addCommand(COMMAND_IDS.addDeleteCellSuggestion, {
+      caption: trans.__('Add delete cell suggestion'),
+      execute: async () => {
+        const current = tracker.currentWidget;
+        if (current !== model.currentNotebookPanel) {
+          await model.switchNotebook(current);
+        }
+        await model.addSuggestion({ type: SuggestionType.delete });
       },
       isVisible: () => true
     });
     tracker.activeCellChanged.connect(() => {
       commands.notifyCommandChanged(COMMAND_IDS.addCellSuggestion);
+      commands.notifyCommandChanged(COMMAND_IDS.addDeleteCellSuggestion);
     });
     tracker.selectionChanged.connect(() => {
       commands.notifyCommandChanged(COMMAND_IDS.addCellSuggestion);
+      commands.notifyCommandChanged(COMMAND_IDS.addDeleteCellSuggestion);
     });
   }
 };
@@ -223,3 +236,35 @@ export const registryPlugin: JupyterFrontEndPlugin<ISuggestionsManagerRegistry> 
       return registryManager;
     }
   };
+
+export const cellToolbarPlugin: JupyterFrontEndPlugin<void> = {
+  id: `${NAME_SPACE}:cell-toolbar`,
+  description: 'A JupyterLab extension for suggesting changes.',
+  autoStart: true,
+  requires: [INotebookTracker, ISuggestionsModelToken],
+  optional: [ITranslator, IToolbarWidgetRegistry],
+  activate: (
+    app: JupyterFrontEnd,
+    tracker: INotebookTracker,
+    model: ISuggestionsModel,
+    translator_: ITranslator | null,
+    toolbarRegistry: IToolbarWidgetRegistry | null
+  ) => {
+    console.log(`${NAME_SPACE}:cell-toolbar is activated`);
+    const { commands } = app;
+    if (toolbarRegistry) {
+      toolbarRegistry.addFactory<Cell>(
+        'Cell',
+        'jupyter-suggestions-core:cell-suggestion-menu',
+        cell => {
+          const w = new CellToolbarMenu({
+            cell,
+            commands,
+            suggestionModel: model
+          });
+          return w;
+        }
+      );
+    }
+  }
+};

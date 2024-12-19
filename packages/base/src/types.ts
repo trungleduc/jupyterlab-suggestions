@@ -3,6 +3,11 @@ import { ISignal } from '@lumino/signaling';
 import { IDisposable } from '@lumino/disposable';
 import { Cell, ICellModel } from '@jupyterlab/cells';
 import { User } from '@jupyterlab/services';
+
+export enum SuggestionType {
+  change = 'CHANGE',
+  delete = 'DELETE'
+}
 export interface IDict<T = any> {
   [key: string]: T;
 }
@@ -21,9 +26,15 @@ export interface ISuggestionData {
   originalCellId: string;
 
   /**
-   * The model of the suggestion cell.
+   * The model of the suggestion cell, `null` if it's a cell deletion
+   * suggestion
    */
-  cellModel: ICellModel;
+  cellModel: ICellModel | null;
+
+  /**
+   * Suggestion type.
+   */
+  type: SuggestionType;
 
   /**
    * Suggestion metadata.
@@ -41,7 +52,7 @@ export interface ISuggestionViewData {
   originalCellModel: ICellModel;
 
   /**
-   * The model of the suggestion cell.
+   * The model of the suggestion cell
    */
   cellModel: ICellModel;
 
@@ -49,6 +60,11 @@ export interface ISuggestionViewData {
    * Suggestion metadata.
    */
   metadata: ISuggestionMetadata;
+
+  /**
+   * Suggestion type.
+   */
+  type: SuggestionType;
 }
 
 /**
@@ -131,7 +147,7 @@ export interface ISuggestionsModel extends IDisposable {
    *
    * @returns A promise that resolves when the suggestion is added.
    */
-  addSuggestion(): Promise<void>;
+  addSuggestion(options: { type: SuggestionType }): Promise<void>;
 
   /**
    * Deletes a suggestion from a specified cell.
@@ -184,6 +200,17 @@ export interface ISuggestionsModel extends IDisposable {
   }): Promise<ISuggestionViewData | undefined>;
 
   /**
+   * Retrieves all suggestions of a cell by cell ID.
+   *
+   * @param options - An object containing the cell ID.
+   * @returns The suggestion data or undefined
+   * if not found.
+   */
+  getCellSuggestions(options: {
+    cellId: string;
+  }): IDict<ISuggestionViewData> | undefined;
+
+  /**
    * Retrieves the index of a cell by its ID.
    *
    * @param cellId - The ID of the cell (optional).
@@ -197,6 +224,12 @@ export interface ISuggestionsModel extends IDisposable {
    * @returns The cell instance, or -1 if the cell is not found.
    */
   getActiveCell(): Cell<ICellModel> | null | undefined;
+
+  /**
+   * Scroll to the cell by its id
+   *
+   */
+  scrollToCell(cellId?: string): void;
 }
 
 export interface ISuggestionChange {
@@ -255,6 +288,7 @@ export interface ISuggestionsManager extends IDisposable {
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
     author?: User.IIdentity | null;
+    type: SuggestionType;
   }): Promise<string>;
 
   /**

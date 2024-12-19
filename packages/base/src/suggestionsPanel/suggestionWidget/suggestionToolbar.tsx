@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ReactWidget, ToolbarButtonComponent } from '@jupyterlab/apputils';
 import { toolbarButtonStyle, toolbarStyle } from './style';
 import { checkIcon, closeIcon } from '@jupyterlab/ui-components';
-import { collapseIcon, expandIcon } from '../../icons';
+import { collapseIcon, expandIcon, locationIcon } from '../../icons';
 import { IObservableMap } from '@jupyterlab/observables';
 import { JSONValue } from '@lumino/coreutils';
 import { ISuggestionMetadata } from '../../types';
@@ -12,6 +12,7 @@ interface IProps {
   toggleMinimized: (min: boolean) => void;
   deleteCallback: () => Promise<void>;
   acceptCallback: () => Promise<void>;
+  navigateCallback: () => Promise<void>;
   metadata: ISuggestionMetadata;
 }
 function _SuggestionToolbarReact(props: IProps) {
@@ -33,7 +34,7 @@ function _SuggestionToolbarReact(props: IProps) {
       state.changed.disconnect(handler);
     };
   }, [state]);
-  const userData = props.metadata.author;
+  const userData = props.metadata?.author;
   return (
     <div className={toolbarStyle}>
       {userData && (
@@ -62,6 +63,12 @@ function _SuggestionToolbarReact(props: IProps) {
         icon={elementState.minimized ? expandIcon : collapseIcon}
         onClick={minimizeClick}
         iconLabel={elementState.minimized ? 'Expand' : 'Collapse'}
+      />
+      <ToolbarButtonComponent
+        className={toolbarButtonStyle}
+        icon={locationIcon}
+        onClick={props.navigateCallback}
+        iconLabel={'Navigate to cell'}
       />
     </div>
   );

@@ -7,11 +7,14 @@ import {
 import {
   BaseSuggestionsManager,
   cellModelFromYCell,
+  deleteCellById,
   detectCellChangedEvent,
   IAllSuggestionData,
   IDict,
   ISuggestionData,
-  ISuggestionsManager
+  ISuggestionMetadata,
+  ISuggestionsManager,
+  SuggestionType
 } from '@jupyter/suggestions-base';
 import { NotebookChange, YCellType, YNotebook } from '@jupyter/ydoc';
 import { Cell, CellModel, ICellModel } from '@jupyterlab/cells';
@@ -24,6 +27,13 @@ import { WebsocketProvider as YWebsocketProvider } from 'y-websocket';
 
 const DOCUMENT_PROVIDER_URL = 'api/collaboration/room';
 
+interface IForkMetadata {
+  cellId?: string;
+  path?: string;
+  mimeType?: string;
+  suggestionType: SuggestionType;
+  metadata?: ISuggestionMetadata;
+}
 export class RtcSuggestionsManager
   extends BaseSuggestionsManager
   implements ISuggestionsManager
@@ -57,12 +67,20 @@ export class RtcSuggestionsManager
   async getAllSuggestions(
     notebook: NotebookPanel
   ): Promise<IAllSuggestionData> {
-    const rootDocId = notebook.context.model.sharedModel.getState(
-      'document_id'
-    ) as string;
-
-    const [format, type] = rootDocId.split(':');
     const path = notebook.context.localPath;
+    let rootDocId = notebook.context.model.sharedModel.getState(
+      'document_id'
+    ) as string | undefined;
+    let format = 'json';
+    let type = 'notebook';
+    if (rootDocId) {
+      [format, type] = rootDocId.split(':');
+    } else {
+      const docSession = await requestDocSession(format, type, path);
+      rootDocId = `${format}:${type}:${docSession.fileId}`;
+      this._serverSession = docSession.sessionId;
+    }
+
     if (!this._serverSession) {
       const docSession = await requestDocSession(format, type, path);
       this._serverSession = docSession.sessionId;
@@ -78,9 +96,11 @@ export class RtcSuggestionsManager
         cellMap[element.id] = element;
       }
       for (const [forkRoomId, forkData] of Object.entries(allForks)) {
-        const forkMeta = JSON.parse(forkData.description ?? '{}');
+        const forkMeta = JSON.parse(
+          forkData.description ?? '{}'
+        ) as IForkMetadata;
         const cellId = forkMeta.cellId;
-        if (!cellMap[cellId]) {
+        if (!cellId || !cellMap[cellId]) {
           continue;
         }
         const metadata = forkMeta.metadata;
@@ -94,7 +114,8 @@ export class RtcSuggestionsManager
         const data: ISuggestionData = {
           cellModel,
           originalCellId: cellId,
-          metadata
+          metadata: metadata ?? {},
+          type: forkMeta.suggestionType
         };
         if (currentSuggestion.has(cellId)) {
           const currentData = currentSuggestion.get(cellId)!;
@@ -128,24 +149,27 @@ export class RtcSuggestionsManager
     notebook: NotebookPanel;
     cell: Cell<ICellModel>;
     author?: User.IIdentity | null;
+    type: SuggestionType;
   }): Promise<string> {
-    const { notebook, cell, author } = options;
+    const { notebook, cell, author, type } = options;
     const path = notebook.context.localPath;
 
     const cellId = cell.model.id;
     const rootId = notebook.context.model.sharedModel.getState(
       'document_id'
     ) as string;
+    const forkMetadata: IForkMetadata = {
+      cellId,
+      path,
+      mimeType: cell.model.mimeType,
+      suggestionType: type,
+      metadata: { author }
+    };
     const response = await this._forkManager.createFork({
       rootId,
       synchronize: true,
       //TODO: Update when the fork manager supports metadata
-      description: JSON.stringify({
-        cellId,
-        path,
-        mimeType: cell.model.mimeType,
-        metadata: { author }
-      })
+      description: JSON.stringify(forkMetadata)
     });
     return response?.fork_roomid ?? '';
   }
@@ -155,11 +179,28 @@ export class RtcSuggestionsManager
     cellId: string;
     suggestionId: string;
   }): Promise<boolean> {
-    const { suggestionId } = options;
+    const { suggestionId, cellId, notebook } = options;
+    const notebookPath = notebook.context.localPath;
+    const suggestionData = await this.getSuggestion({
+      notebookPath,
+      cellId,
+      suggestionId
+    });
+    if (!suggestionData) {
+      return false;
+    }
+    const suggestionType = suggestionData.type;
+    if (suggestionType === SuggestionType.delete) {
+      const sharedModel = this._allSharedNotebook.get(suggestionId);
+      const deleted = await deleteCellById({ sharedModel, cellId });
+      if (!deleted) {
+        return deleted;
+      }
+    }
     try {
+      this._removeSharedNotebook(suggestionId);
       await this._forkManager.deleteFork({ forkId: suggestionId, merge: true });
 
-      this._removeSharedNotebook(suggestionId);
       return true;
     } catch (e) {
       console.error(e);
@@ -173,8 +214,19 @@ export class RtcSuggestionsManager
     suggestionId: string;
   }): Promise<void> {
     const { suggestionId } = options;
-    await this._forkManager.deleteFork({ forkId: suggestionId, merge: false });
-    this._removeSharedNotebook(suggestionId);
+    setTimeout(() => {
+      if (this._allSharedNotebook.has(suggestionId)) {
+        this._removeSharedNotebook(suggestionId);
+        try {
+          this._forkManager.deleteFork({
+            forkId: suggestionId,
+            merge: false
+          });
+        } catch (e) {
+          //
+        }
+      }
+    }, 0);
   }
 
   async updateSuggestion(options: {
@@ -200,10 +252,10 @@ export class RtcSuggestionsManager
     changed: IForkChangedEvent
   ) {
     const forkInfo = changed.fork_info;
-    const forkMeta = JSON.parse(forkInfo.description ?? '{}');
+    const forkMeta = JSON.parse(forkInfo.description ?? '{}') as IForkMetadata;
     const { cellId, path } = forkMeta;
     const suggestionId = changed.fork_roomid;
-    if (this._suggestionsMap.has(path)) {
+    if (path && cellId && this._suggestionsMap.has(path)) {
       const nbSuggestions = this._suggestionsMap.get(path);
       if (nbSuggestions && nbSuggestions.has(cellId)) {
         delete nbSuggestions.get(cellId)![suggestionId];
@@ -232,13 +284,13 @@ export class RtcSuggestionsManager
       forkCellId: string;
       forkRoomId: string;
       notebookPath: string;
+      suggestionType: SuggestionType;
     }
   ) {
     const { forkCellMimeType, forkCellId, forkRoomId, notebookPath } = options;
     const cellChangedEvent = detectCellChangedEvent(changed);
     if (cellChangedEvent) {
       const { event } = cellChangedEvent;
-
       if (event === 'moved') {
         const movedCells = cellChangedEvent.movedCells ?? [];
         const cellMap: IDict<YCellType> = {};
@@ -273,8 +325,8 @@ export class RtcSuggestionsManager
     changed: IForkChangedEvent
   ) {
     const forkInfo = changed.fork_info;
-    const forkMeta = JSON.parse(forkInfo.description ?? '{}');
-    const { cellId, path, mimeType, metadata } = forkMeta;
+    const forkMeta = JSON.parse(forkInfo.description ?? '{}') as IForkMetadata;
+    const { cellId, path, mimeType, metadata, suggestionType } = forkMeta;
     const rootId = forkInfo.root_roomid;
     const suggestionId = changed.fork_roomid;
     if (!path || !cellId) {
@@ -297,14 +349,16 @@ export class RtcSuggestionsManager
       rootDocId: rootId,
       forkRoomId: suggestionId,
       cellId,
-      mimeType,
+      mimeType: mimeType ?? 'text/plain',
       forkMeta
     });
     const suggestionContent: ISuggestionData = {
       originalCellId: cellId,
       cellModel,
-      metadata
+      metadata: metadata ?? {},
+      type: suggestionType
     };
+
     cellSuggesions[suggestionId] = suggestionContent;
     this._suggestionChanged.emit({
       notebookPath: path,
@@ -318,13 +372,13 @@ export class RtcSuggestionsManager
     forkRoomId: string;
     cellId: string;
     mimeType: string;
-    forkMeta: any;
-  }): Promise<CellModel> {
+    forkMeta: IForkMetadata;
+  }): Promise<CellModel | null> {
     const { rootDocId, forkRoomId, cellId, mimeType, forkMeta } = options;
     const [format, type] = rootDocId.split(':');
     const sharedModelFactory =
       this._drive.sharedModelFactory.documentFactories.get(type);
-    const pd = new PromiseDelegate<CellModel>();
+    const pd = new PromiseDelegate<CellModel | null>();
     if (sharedModelFactory) {
       const shared = sharedModelFactory({
         path: forkRoomId,
@@ -335,10 +389,11 @@ export class RtcSuggestionsManager
       this._allSharedNotebook.set(forkRoomId, shared);
       const handler = (sender: YNotebook, args: NotebookChange) =>
         this._handleForkNotebookChanged(sender, args, {
-          forkCellMimeType: forkMeta.mimeType,
-          forkCellId: forkMeta.cellId,
+          forkCellMimeType: mimeType,
+          forkCellId: cellId,
           forkRoomId,
-          notebookPath: forkMeta.path
+          notebookPath: forkMeta.path!,
+          suggestionType: forkMeta.suggestionType
         });
       shared.changed.connect(handler);
       shared.disposed.connect(() => {
@@ -370,6 +425,9 @@ export class RtcSuggestionsManager
             } else {
               pd.reject('Invalid cell type');
             }
+          } else {
+            // Cell deletion suggestion
+            pd.resolve(null);
           }
         }
       });

@@ -3,7 +3,8 @@ import {
   suggestionsPanelPlugin,
   commandsPlugin,
   suggestionsManagerPlugin,
-  registryPlugin
+  registryPlugin,
+  cellToolbarPlugin
 } from './plugins';
 
 export default [
@@ -11,5 +12,6 @@ export default [
   suggestionsModelPlugin,
   suggestionsPanelPlugin,
   commandsPlugin,
-  suggestionsManagerPlugin
+  suggestionsManagerPlugin,
+  cellToolbarPlugin
 ];
