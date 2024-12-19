@@ -163,13 +163,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jupyter-suggestions-playwright-tests
+          name: jupyter-suggestions-playwright-${{ matrix.backend }}-tests
           path: |
             ui-tests/test-results
             ui-tests/playwright-report
   build-lite:
     name: Build JupyterLite
-    needs: build
+    needs: [test_isolated, integration-tests]
     runs-on: ubuntu-latest
 
     steps:
