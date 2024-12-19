@@ -274,7 +274,7 @@ export class SuggestionsWidget extends PanelWithToolbar {
       }
     };
     const navigateCallback = async () => {
-      this._model.nativateToCell(cellId);
+      this._model.scrollToCell(cellId);
     };
     let Cls: typeof BaseCellwidget = BaseCellwidget;
     switch (suggestionData.type) {

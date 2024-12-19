@@ -244,7 +244,7 @@ export class SuggestionsModel implements ISuggestionsModel {
     }
   }
 
-  nativateToCell(cellId?: string): void {
+  scrollToCell(cellId?: string): void {
     if (cellId && this._notebookPanel) {
       const index = this.getCellIndex(cellId);
       if (index !== -1) {

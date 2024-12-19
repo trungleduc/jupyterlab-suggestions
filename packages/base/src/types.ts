@@ -229,7 +229,7 @@ export interface ISuggestionsModel extends IDisposable {
    * Scroll to the cell by its id
    *
    */
-  nativateToCell(cellId?: string): void;
+  scrollToCell(cellId?: string): void;
 }
 
 export interface ISuggestionChange {
