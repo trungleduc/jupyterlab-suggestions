@@ -1,4 +1,4 @@
-<h1 align="center">jupyterlab_suggestions</h1>
+<h1 align="center">jupyterlab-suggestions</h1>
 
 [![Github Actions Status](https://github.com/jupyterlab-contrib/jupyter-suggestions/workflows/Build/badge.svg)](https://github.com/jupyterlab-contrib/jupyter-suggestions/actions/workflows/build.yml)
 
