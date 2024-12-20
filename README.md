@@ -4,7 +4,7 @@
 
 <h2 align="center">A JupyterLab extension for suggesting changes</h2>
 
-![screencast of a cell suggestion in a notebook](./assets/suggestion-demo.mp4)
+https://github.com/user-attachments/assets/5b944b39-562b-4d6e-b0e3-1e16b92224d1
 
 ## Requirements
 
