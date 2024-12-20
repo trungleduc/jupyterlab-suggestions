@@ -34,14 +34,6 @@ jupyter lab
 
 With the watch command running, every saved change will immediately be built locally and available in your running JupyterLab. Refresh JupyterLab to load the change in your browser (you may need to wait several seconds for the extension to be rebuilt).
 
-#### See also
-
-Custom build doc: https://ocjs.org/docs/app-dev-workflow/custom-builds
-
-Custom build example: https://github.com/donalffons/opencascade.js/blob/master/website/ocjs-editor-theme/src/customBuild/customBuild.yml
-
-Where to find symbols: https://dev.opencascade.org/doc/refman/html/annotated.html
-
 ### Development uninstall
 
 ```bash

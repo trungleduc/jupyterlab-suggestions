@@ -1,18 +1,35 @@
-# jupyterlab_suggestions
+<h1 align="center">jupyterlab_suggestions</h1>
 
 [![Github Actions Status](https://github.com/jupyterlab-contrib/jupyter-suggestions/workflows/Build/badge.svg)](https://github.com/jupyterlab-contrib/jupyter-suggestions/actions/workflows/build.yml)
 
-A JupyterLab extension for suggesting changes.
+<h2 align="center">A JupyterLab extension for suggesting changes</h2>
 
-![screenshot of a cell suggestion in a notebook](./jupyter-suggestions.png)
-
-## Status
-
-⚠️ WIP ⚠️
+![screencast of a cell suggestion in a notebook](./assets/suggestion-demo.mp4)
 
 ## Requirements
 
 - JupyterLab >= 4.0.0
+
+## Installation
+
+To install the extension, use the following commands:
+
+```bash
+pip install jupyter-suggestions
+```
+
+By default, `jupyter-suggestions` uses notebook metadata to store suggestions. However, this approach has certain limitations:
+
+- Changes made to the suggested cell are not reflected in the suggestion widget.
+- Accepting a suggestion overwrites the content of the suggested cell.
+
+To address these issues, you can install an additional package to utilize the forking capabilities of `jupyter-collaboration`.
+
+```bash
+pip install jupyter-suggestions-rtc
+```
+
+By using `jupyter-collaboration` as the backend for managing suggestions, the content of suggestions is merged directly into the suggested cell.
 
 ## Contributing
 
